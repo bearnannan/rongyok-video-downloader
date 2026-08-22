@@ -1,5 +1,35 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { execFile } from "child_process";
+
+function liveScraperPlugin(): Plugin {
+  return {
+    name: "live-scraper-plugin",
+    configureServer(server) {
+      server.middlewares.use("/api/fetch-series", (req, res) => {
+        const urlObj = new URL(req.url || "", "http://localhost:1420");
+        const seriesId = urlObj.searchParams.get("series_id") || "8626";
+
+        execFile(
+          "python",
+          ["scrape_series.py", seriesId],
+          { cwd: process.cwd() },
+          (error, stdout) => {
+            if (error) {
+              res.statusCode = 500;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ error: error.message }));
+              return;
+            }
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(stdout);
+          }
+        );
+      });
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -9,7 +39,7 @@ export default defineConfig(({ mode }) => {
   const host = process.env.TAURI_DEV_HOST;
 
   return {
-    plugins: [react()],
+    plugins: [react(), liveScraperPlugin()],
     base: isLanding ? "/rongyok-video-downloader/" : "./",
     define: {
       "import.meta.env.VITE_APP_MODE": JSON.stringify(isLanding ? "landing" : "desktop"),
@@ -25,21 +55,6 @@ export default defineConfig(({ mode }) => {
       port: 1420,
       strictPort: true,
       host: host || false,
-      proxy: {
-        "/proxy-rongyok": {
-          target: "https://rongyok.com",
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path.replace(/^\/proxy-rongyok/, ""),
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Referer": "https://rongyok.com/",
-            "Accept":
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-          },
-        },
-      },
       hmr: host
         ? {
             protocol: "ws",

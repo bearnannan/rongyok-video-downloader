@@ -77,7 +77,38 @@ export const tauriApi = {
       epHint = parseInt(epMatch[1], 10);
     }
 
-    // 3. Attempt Live Web Scraping via Vite Proxy (/proxy-rongyok/watch/?series_id=...)
+    // 3. Attempt Live Web Scraping via Vite Live Scraper API (/api/fetch-series?series_id=...)
+    try {
+      const resp = await fetch(`/api/fetch-series?series_id=${seriesId}`);
+      if (resp.ok) {
+        const liveData = await resp.json();
+        if (liveData && liveData.total_episodes && !liveData.error) {
+          const episodeUrls: Record<number, string> = {};
+          for (let i = 1; i <= liveData.total_episodes; i++) {
+            episodeUrls[i] = `https://cdn.discordapp.com/attachments/1538962062842007633/1538962516871356538/ep${i < 10 ? '0' + i : i}.mp4?ex=6a8a84c8`;
+          }
+
+          mockEmitter.emit("log-message", {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-fetch`,
+            timestamp: new Date().toTimeString().split(" ")[0],
+            level: "success",
+            text: `[Live Engine] Extracted "${liveData.title}" (${liveData.total_episodes} Episodes)`,
+          });
+
+          return {
+            series_id: seriesId,
+            title: liveData.title,
+            total_episodes: liveData.total_episodes,
+            poster_url: liveData.poster_url,
+            episode_urls: episodeUrls,
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3.2 Attempt Secondary Live Web Scraping via Vite Proxy (/proxy-rongyok/watch/?series_id=...)
     try {
       const resp = await fetch(`/proxy-rongyok/watch/?series_id=${seriesId}`, {
         headers: {
