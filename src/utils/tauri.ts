@@ -95,11 +95,16 @@ export const tauriApi = {
             text: `[Live Engine] Extracted "${liveData.title}" (${liveData.total_episodes} Episodes)`,
           });
 
+          let finalPosterUrl = liveData.poster_url;
+          if (finalPosterUrl && (finalPosterUrl.startsWith("http://") || finalPosterUrl.startsWith("https://"))) {
+            finalPosterUrl = `/api/proxy-image?url=${encodeURIComponent(finalPosterUrl)}`;
+          }
+
           return {
             series_id: seriesId,
             title: liveData.title,
             total_episodes: liveData.total_episodes,
-            poster_url: liveData.poster_url,
+            poster_url: finalPosterUrl,
             episode_urls: episodeUrls,
           };
         }

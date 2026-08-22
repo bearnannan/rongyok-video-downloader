@@ -5,6 +5,22 @@ import html as html_parser
 import urllib.parse
 import requests
 
+def proxy_image(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Referer": "https://rongyok.com/",
+        "Sec-Fetch-Dest": "image",
+        "Sec-Fetch-Mode": "no-cors",
+        "Sec-Fetch-Site": "same-origin",
+    }
+    session = requests.Session()
+    try:
+        session.get("https://rongyok.com/", headers=headers, timeout=5)
+    except Exception:
+        pass
+    resp = session.get(url, headers=headers, timeout=10)
+    sys.stdout.buffer.write(resp.content)
+
 def scrape(series_id):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -121,8 +137,11 @@ def scrape(series_id):
     }
 
 if __name__ == "__main__":
-    sid = int(sys.argv[1]) if len(sys.argv) > 1 else 8608
-    res = scrape(sid)
-    # Output pure UTF-8 bytes to binary stdout buffer
-    json_bytes = json.dumps(res, ensure_ascii=False).encode('utf-8')
-    sys.stdout.buffer.write(json_bytes)
+    if len(sys.argv) > 2 and sys.argv[1] == "--image":
+        proxy_image(sys.argv[2])
+    else:
+        sid = int(sys.argv[1]) if len(sys.argv) > 1 else 8608
+        res = scrape(sid)
+        # Output pure UTF-8 bytes to binary stdout buffer
+        json_bytes = json.dumps(res, ensure_ascii=False).encode('utf-8')
+        sys.stdout.buffer.write(json_bytes)

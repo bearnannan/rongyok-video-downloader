@@ -31,6 +31,38 @@ function liveScraperPlugin(): Plugin {
           }
         );
       });
+
+      server.middlewares.use("/api/proxy-image", (req, res) => {
+        const urlObj = new URL(req.url || "", "http://localhost:1420");
+        const targetUrl = urlObj.searchParams.get("url");
+
+        if (!targetUrl) {
+          res.statusCode = 400;
+          res.end("Missing url parameter");
+          return;
+        }
+
+        execFile(
+          "python",
+          ["-X", "utf8", "scrape_series.py", "--image", targetUrl],
+          {
+            cwd: process.cwd(),
+            encoding: "buffer",
+            maxBuffer: 20 * 1024 * 1024,
+          },
+          (error, stdout) => {
+            if (error) {
+              res.statusCode = 500;
+              res.end(error.message);
+              return;
+            }
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "image/webp");
+            res.setHeader("Cache-Control", "public, max-age=86400");
+            res.end(stdout);
+          }
+        );
+      });
     },
   };
 }
