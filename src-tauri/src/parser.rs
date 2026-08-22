@@ -447,5 +447,18 @@ mod tests {
         let html = r#"<meta name="description" content="ดูซีรีส์ 90 ตอนจบ">"#;
         assert_eq!(parser.extract_total_episodes(html), 90);
     }
+
+    #[test]
+    fn test_parse_series_url_formats() {
+        let parser = RongyokParser::new();
+        assert_eq!(parser.parse_series_url("https://rongyok.com/watch/?series_id=7910&ep=1"), Some(7910));
+        assert_eq!(parser.parse_series_url("https://rongyok.com/series/7910/สงครามรักซาตาน"), Some(7910));
+        assert_eq!(parser.parse_series_url("https://rongyok.com/series/7910/%E0%B8%AA%E0%B8%87..."), Some(7910));
+        assert_eq!(parser.parse_series_url("https://rongyok.com/series/8625/"), Some(8625));
+        assert_eq!(parser.parse_series_url("https://rongyok.com/watch/941"), Some(941));
+        assert_eq!(parser.parse_series_url("100999963"), Some(100999963));
+        assert_eq!(parser.parse_series_url("?ref=share&series_id=8626&ep=55"), Some(8626));
+    }
 }
+
 
