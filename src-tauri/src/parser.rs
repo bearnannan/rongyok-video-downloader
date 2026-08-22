@@ -115,10 +115,7 @@ impl RongyokParser {
             .await
             .map_err(|e| format!("Failed to read HTML response: {}", e))?;
 
-        // Extract Title:
-        // Priority 1: <meta property="og:title" content="..."> or twitter:title
-        // Priority 2: <h1 class="...">...</h1>
-        // Priority 3: <title>...</title>
+        // 1. Extract Title
         let og_title_re = Regex::new(r#"<meta\s+(?:property|name)=["'](?:og:title|twitter:title)["']\s+content=["'](.*?)["']"#).unwrap();
         let h1_re = Regex::new(r#"<h1[^>]*>(.*?)</h1>"#).unwrap();
         let title_re = Regex::new(r"(?i)<title>(.*?)</title>").unwrap();
@@ -144,7 +141,7 @@ impl RongyokParser {
             })
             .unwrap_or_else(|| format!("Series {}", series_id));
 
-        // Clean title - remove episode suffix, html entities and trim
+        // Clean title
         let clean_title_re = Regex::new(r"\s*-\s*ตอนที่\s*\d+.*$").unwrap();
         let mut title = clean_title_re.replace(&raw_title, "").to_string();
         title = title
@@ -157,16 +154,21 @@ impl RongyokParser {
             .trim()
             .to_string();
 
-        // Extract Poster URL:
-        // Priority 1: og:image / twitter:image
-        // Priority 2: <img class="...poster..." src="...">
+        // 2. Extract Poster URL
         let og_image_re = Regex::new(r#"<meta\s+(?:property|name)=["'](?:og:image|twitter:image)["']\s+content=["'](.*?)["']"#).unwrap();
+        let json_jpg_re = Regex::new(r#""(?:jpg_url|poster_url)"\s*:\s*"([^"]+)""#).unwrap();
         let poster_img_re = Regex::new(r#"<img[^>]+(?:class|id)=["'][^"']*poster[^"']*["'][^>]+src=["'](.*?)["']"#).unwrap();
 
-        let mut poster_url = og_image_re
+        let mut poster_url = json_jpg_re
             .captures(&html)
             .and_then(|c| c.get(1))
-            .map(|m| m.as_str().to_string())
+            .map(|m| m.as_str().replace(r"\/", "/"))
+            .or_else(|| {
+                og_image_re
+                    .captures(&html)
+                    .and_then(|c| c.get(1))
+                    .map(|m| m.as_str().to_string())
+            })
             .or_else(|| {
                 poster_img_re
                     .captures(&html)
@@ -179,28 +181,25 @@ impl RongyokParser {
                 poster_url = Some(format!("https:{}", p_url));
             } else if p_url.starts_with('/') {
                 poster_url = Some(format!("https://rongyok.com{}", p_url));
+            } else if !p_url.starts_with("http") {
+                poster_url = Some(format!("https://rongyok.com/{}", p_url));
             }
         }
 
-        // Extract inline episode URLs if any
+        // 3. Extract inline episode URLs if any
         let mut episode_urls = self.extract_all_episode_urls(&html);
 
-        // Extract total episodes
-        let mut total_episodes = if !episode_urls.is_empty() {
-            episode_urls.len() as u32
-        } else {
-            self.extract_total_episodes(&html)
-        };
+        // 4. Extract total episodes accurately
+        let mut total_episodes = self.extract_total_episodes(&html);
+        if !episode_urls.is_empty() && total_episodes < episode_urls.len() as u32 {
+            total_episodes = episode_urls.len() as u32;
+        }
 
-        // If no episodes found from main HTML, query playseries.php for ep 1 to test
+        // 5. If no episodes found from main HTML, query playseries.php for ep 1 to test
         if total_episodes == 1 && episode_urls.is_empty() {
             if let Ok(ep1_info) = self.get_episode_video_url(series_id, 1).await {
                 episode_urls.insert(1, ep1_info.video_url);
             }
-        }
-
-        if total_episodes < episode_urls.len() as u32 {
-            total_episodes = episode_urls.len() as u32;
         }
 
         let series_info = SeriesInfo {
@@ -261,8 +260,51 @@ impl RongyokParser {
     }
 
     pub fn extract_total_episodes(&self, html: &str) -> u32 {
-        // Method 1: seriesData JSON
-        if let Ok(re_series_data) = Regex::new(r"seriesData\s*=\s*(\{.+?\});") {
+        // Method 1: Direct JSON regex "episodes_count": 124
+        if let Ok(re_count) = Regex::new(r#""episodes_count"\s*:\s*(\d+)"#) {
+            if let Some(caps) = re_count.captures(html) {
+                if let Some(m) = caps.get(1) {
+                    if let Ok(count) = m.as_str().parse::<u32>() {
+                        if count > 0 {
+                            return count;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Method 2: Scan all "episode_number": X in JSON
+        if let Ok(re_ep_nums) = Regex::new(r#""episode_number"\s*:\s*(\d+)"#) {
+            let mut max_ep = 0;
+            for caps in re_ep_nums.captures_iter(html) {
+                if let Some(m) = caps.get(1) {
+                    if let Ok(ep) = m.as_str().parse::<u32>() {
+                        if ep > max_ep {
+                            max_ep = ep;
+                        }
+                    }
+                }
+            }
+            if max_ep > 0 {
+                return max_ep;
+            }
+        }
+
+        // Method 3: Meta description or text: "124 ตอน"
+        if let Ok(re_desc) = Regex::new(r#"(\d+)\s*ตอน"#) {
+            if let Some(caps) = re_desc.captures(html) {
+                if let Some(m) = caps.get(1) {
+                    if let Ok(count) = m.as_str().parse::<u32>() {
+                        if count > 0 {
+                            return count;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Method 4: Full JSON parser on seriesData
+        if let Ok(re_series_data) = Regex::new(r"(?s)seriesData\s*=\s*(\{.+?\});") {
             if let Some(caps) = re_series_data.captures(html) {
                 if let Some(json_str) = caps.get(1) {
                     if let Ok(val) = serde_json::from_str::<Value>(json_str.as_str()) {
@@ -278,34 +320,6 @@ impl RongyokParser {
                         }
                     }
                 }
-            }
-        }
-
-        // Method 2: meta description "XX ตอน"
-        if let Ok(re_desc) = Regex::new(r#"<meta\s+name=["']description["']\s+content=["'][^"']*?(\d+)\s*ตอน"#) {
-            if let Some(caps) = re_desc.captures(html) {
-                if let Some(count_str) = caps.get(1) {
-                    if let Ok(count) = count_str.as_str().parse::<u32>() {
-                        return count;
-                    }
-                }
-            }
-        }
-
-        // Method 3: count matches "ตอนที่ X"
-        if let Ok(re_ep) = Regex::new(r"ตอนที่\s*(\d+)") {
-            let mut max_ep = 1;
-            for caps in re_ep.captures_iter(html) {
-                if let Some(ep_str) = caps.get(1) {
-                    if let Ok(ep) = ep_str.as_str().parse::<u32>() {
-                        if ep > max_ep {
-                            max_ep = ep;
-                        }
-                    }
-                }
-            }
-            if max_ep > 1 {
-                return max_ep;
             }
         }
 
