@@ -37,7 +37,6 @@ env/
 output/
 downloads/
 *.mp4
-*.ts
 *.m3u8
 *.part
 

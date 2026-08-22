@@ -60,7 +60,7 @@ export const App: React.FC = () => {
 
     // Check FFmpeg
     tauriApi.checkFfmpeg()
-      .then((res) => {
+      .then((res: { available: boolean; path: string | null }) => {
         setFfmpegAvailable(res.available);
         if (res.available) {
           addLog(`FFmpeg detected: ${res.path || 'System PATH'}`, 'success');
@@ -68,7 +68,7 @@ export const App: React.FC = () => {
           addLog('FFmpeg not found. Video merging will be disabled unless installed.', 'warning');
         }
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.warn('FFmpeg check error:', err);
       });
 
@@ -77,30 +77,30 @@ export const App: React.FC = () => {
     let unlistenLog: (() => void) | undefined;
     let unlistenStatus: (() => void) | undefined;
 
-    tauriApi.onProgress((payload) => {
+    tauriApi.onProgress((payload: DownloadProgressEvent) => {
       setProgress(payload);
       setCurrentEpisode(payload.episode);
       if (payload.status_message) {
         setStatusMessage(payload.status_message);
       }
       if (payload.percentage >= 100 && !completedEpisodes.includes(payload.episode)) {
-        setCompletedEpisodes((prev) => [...prev, payload.episode]);
+        setCompletedEpisodes((prev: number[]) => [...prev, payload.episode]);
       }
-    }).then((unlisten) => {
+    }).then((unlisten: () => void) => {
       unlistenProgress = unlisten;
     });
 
-    tauriApi.onLog((payload) => {
-      setLogs((prev) => [...prev, payload]);
-    }).then((unlisten) => {
+    tauriApi.onLog((payload: LogMessage) => {
+      setLogs((prev: LogMessage[]) => [...prev, payload]);
+    }).then((unlisten: () => void) => {
       unlistenLog = unlisten;
     });
 
-    tauriApi.onStatusChange((payload) => {
+    tauriApi.onStatusChange((payload: { status: string; message: string }) => {
       setStatus(payload.status as DownloadStatus);
       setStatusMessage(payload.message);
       addLog(`Status: ${payload.status.toUpperCase()} - ${payload.message}`, 'info');
-    }).then((unlisten) => {
+    }).then((unlisten: () => void) => {
       unlistenStatus = unlisten;
     });
 
