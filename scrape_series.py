@@ -2,6 +2,7 @@ import sys
 import json
 import re
 import html as html_parser
+import urllib.parse
 import requests
 
 def scrape(series_id):
@@ -70,11 +71,15 @@ def scrape(series_id):
     # Extract poster
     json_poster = re.search(r'"(?:jpg_url|poster_url)"\s*:\s*"([^"]+)"', html_content)
     og_image = re.search(r'<meta\s+(?:property|name)=["\'](?:og:image|twitter:image)["\']\s+content=["\'](.*?)["\']', html_content)
+    img_poster = re.search(r'<img[^>]+src=["\']([^"\']*?/images/poster/[^"\']+)["\']', html_content)
+
     poster = None
     if json_poster:
         poster = json_poster.group(1).replace(r"\/", "/")
     elif og_image:
         poster = og_image.group(1)
+    elif img_poster:
+        poster = img_poster.group(1)
 
     if poster:
         if poster.startswith("//"):
@@ -83,6 +88,11 @@ def scrape(series_id):
             poster = "https://rongyok.com" + poster
         elif not poster.startswith("http"):
             poster = "https://rongyok.com/" + poster
+
+        # Convert raw characters in path to clean percent-encoded URL
+        parsed = urllib.parse.urlsplit(poster)
+        encoded_path = urllib.parse.quote(parsed.path)
+        poster = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, encoded_path, parsed.query, parsed.fragment))
 
     # Extract total episodes
     ep_count = None

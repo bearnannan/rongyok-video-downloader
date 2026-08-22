@@ -28,6 +28,7 @@ export const SeriesCard: React.FC<SeriesCardProps> = ({ seriesInfo }) => {
             <img
               src={seriesInfo.poster_url}
               alt={seriesInfo.title}
+              referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
               onError={(e) => {
                 // Fallback to placeholder on image error
