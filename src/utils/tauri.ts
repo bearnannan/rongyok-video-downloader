@@ -51,32 +51,57 @@ export const tauriApi = {
     }
 
     // Browser Simulation Fallback
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 400));
 
-    // Parse series ID or default to 8625
-    let seriesId = 8625;
-    const match = url.match(/series_id=(\d+)/) || url.match(/\/series\/(\d+)/);
-    if (match) {
-      seriesId = parseInt(match[1], 10);
+    // Parse series ID accurately from URL
+    const trimmed = url.trim();
+    let seriesId = 8626;
+
+    if (/^\d+$/.test(trimmed)) {
+      seriesId = parseInt(trimmed, 10);
+    } else {
+      const match = trimmed.match(/series_id=(\d+)/) || trimmed.match(/\/(?:series|watch)\/(\d+)/);
+      if (match) {
+        seriesId = parseInt(match[1], 10);
+      }
+    }
+
+    // Dynamic metadata mapping based on seriesId
+    let title = `ซีรีส์ ${seriesId} พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก`;
+    let totalEpisodes = 80;
+    let posterUrl = `https://rongyok.com/images/poster/series-${seriesId}.jpg`;
+
+    if (seriesId === 8626) {
+      title = "ดูสายลับจับคู่รักซีซั่น8 พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก";
+      totalEpisodes = 124;
+      posterUrl = "https://rongyok.com/images/poster/สายลับจับคู่รักซีซั่น8-พากย์ไทย-2026-8626.jpg";
+    } else if (seriesId === 8625) {
+      title = "ดูเกิดใหม่ครั้งนี้ไม่ขอแสร้งเป็นลูกเศรษฐี7 พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก";
+      totalEpisodes = 77;
+      posterUrl = "https://rongyok.com/images/poster/เกิดใหม่ครั้งนี้ไม่ขอแสร้งเป็นลูกเศรษฐี7-พากย์ไทย-2026-8625.jpg";
+    } else if (seriesId === 941) {
+      title = "สายลับสาวทะลุมิติ พากย์ไทย หนังสั้นจีน - โรงหยก";
+      totalEpisodes = 68;
+      posterUrl = "https://rongyok.com/images/poster/series-941.jpg";
     }
 
     mockEmitter.emit("log-message", {
       id: `${Date.now()}-fetch`,
       timestamp: new Date().toTimeString().split(" ")[0],
       level: "success",
-      text: `[Browser Mode] Successfully resolved metadata for Series ${seriesId}`,
+      text: `[Browser Mode] Successfully resolved metadata: "${title}" (${totalEpisodes} Episodes)`,
     });
 
     const episodeUrls: Record<number, string> = {};
-    for (let i = 1; i <= 77; i++) {
-      episodeUrls[i] = `https://cdn.discordapp.com/attachments/1538959031526363207/1538959083707826176/ep${i < 10 ? '0' + i : i}.mp4?ex=6a8a8196`;
+    for (let i = 1; i <= totalEpisodes; i++) {
+      episodeUrls[i] = `https://cdn.discordapp.com/attachments/1538962062842007633/1538962516871356538/ep${i < 10 ? '0' + i : i}.mp4?ex=6a8a84c8`;
     }
 
     return {
       series_id: seriesId,
-      title: "ดูเกิดใหม่ครั้งนี้ไม่ขอแสร้งเป็นลูกเศรษฐี7 พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก",
-      total_episodes: 77,
-      poster_url: "https://rongyok.com/images/poster/เกิดใหม่ครั้งนี้ไม่ขอแสร้งเป็นลูกเศรษฐี7-พากย์ไทย-2026-8625.jpg",
+      title,
+      total_episodes: totalEpisodes,
+      poster_url: posterUrl,
       episode_urls: episodeUrls,
     };
   },

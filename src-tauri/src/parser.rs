@@ -55,8 +55,16 @@ impl RongyokParser {
     }
 
     pub fn parse_series_url(&self, url: &str) -> Option<u32> {
+        let trimmed = url.trim();
+
+        // Direct number input e.g. "8626"
+        if let Ok(id) = trimmed.parse::<u32>() {
+            return Some(id);
+        }
+
+        // Query param e.g. ?series_id=8626 or &series_id=8626
         let re_query = Regex::new(r"series_id=(\d+)").ok()?;
-        if let Some(caps) = re_query.captures(url) {
+        if let Some(caps) = re_query.captures(trimmed) {
             if let Some(m) = caps.get(1) {
                 if let Ok(id) = m.as_str().parse::<u32>() {
                     return Some(id);
@@ -64,8 +72,9 @@ impl RongyokParser {
             }
         }
 
-        let re_path = Regex::new(r"/series/(\d+)(?:/|$)").ok()?;
-        if let Some(caps) = re_path.captures(url) {
+        // Path formats e.g. /series/8626 or /watch/8626
+        let re_path = Regex::new(r"/(?:series|watch)/(\d+)(?:/|$)").ok()?;
+        if let Some(caps) = re_path.captures(trimmed) {
             if let Some(m) = caps.get(1) {
                 if let Ok(id) = m.as_str().parse::<u32>() {
                     return Some(id);

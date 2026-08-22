@@ -4,11 +4,16 @@ import { DesktopApp } from './components/DesktopApp';
 import { LandingPage } from './components/LandingPage';
 
 export const App: React.FC = () => {
-  // If running inside the Tauri native desktop window, render the focused Desktop HUD
-  if (isTauri()) {
-    return <DesktopApp />;
+  // Check if landing showcase mode is explicitly requested (via Vite mode or URL query param ?view=landing)
+  const isLandingMode =
+    import.meta.env.VITE_APP_MODE === 'landing' ||
+    (typeof window !== 'undefined' && window.location.search.includes('view=landing'));
+
+  // If in web showcase mode AND NOT in native Tauri -> Render Landing Page
+  if (isLandingMode && !isTauri()) {
+    return <LandingPage />;
   }
 
-  // If accessed via web browser / GitHub Pages, render the full Showcase Landing Page
-  return <LandingPage />;
+  // Default: Always render the main Downloader Desktop App interface directly
+  return <DesktopApp />;
 };
