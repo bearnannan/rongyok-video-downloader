@@ -1,197 +1,83 @@
-# 🚀 Release & Build Executables for Windows, macOS, Linux
-
-name: 🎬 Release
+name: Release
 
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.0.0
-  workflow_dispatch:  # Allow manual trigger
+      - 'v*'
+  workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., v1.0.0)'
+        description: 'Version tag (e.g., v2.0.0)'
         required: true
-        default: 'v1.0.0'
+        default: 'v2.0.0'
 
 permissions:
   contents: write
 
 jobs:
-  # 🪟 Build for Windows
-  build-windows:
+  build-tauri-windows:
     runs-on: windows-latest
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
+          node-version: 20
+          cache: 'npm'
 
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: 🔨 Build executable
-        run: |
-          pyinstaller --onefile --windowed --name "RongyokDownloader-Windows" --icon=NONE gui.py
-          pyinstaller --onefile --console --name "rongyok-cli-windows" cli.py
+      - name: Install dependencies
+        run: npm ci
 
-      - name: 📤 Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: |
-            dist/RongyokDownloader-Windows.exe
-            dist/rongyok-cli-windows.exe
-
-  # 🍎 Build for macOS
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: 🔨 Build executable
-        run: |
-          pyinstaller --onefile --windowed --name "RongyokDownloader-macOS" gui.py
-          pyinstaller --onefile --console --name "rongyok-cli-macos" cli.py
-
-      - name: 📦 Create macOS zip
-        run: |
-          cd dist
-          zip -r RongyokDownloader-macOS.zip RongyokDownloader-macOS.app || zip RongyokDownloader-macOS.zip RongyokDownloader-macOS
-          zip rongyok-cli-macos.zip rongyok-cli-macos
-
-      - name: 📤 Upload macOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-build
-          path: |
-            dist/RongyokDownloader-macOS.zip
-            dist/rongyok-cli-macos.zip
-
-  # 🐧 Build for Linux
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: 🔨 Build executable
-        run: |
-          pyinstaller --onefile --windowed --name "RongyokDownloader-Linux" gui.py
-          pyinstaller --onefile --console --name "rongyok-cli-linux" cli.py
-
-      - name: 📦 Create Linux tar.gz
-        run: |
-          cd dist
-          tar -czvf RongyokDownloader-Linux.tar.gz RongyokDownloader-Linux
-          tar -czvf rongyok-cli-linux.tar.gz rongyok-cli-linux
-
-      - name: 📤 Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: |
-            dist/RongyokDownloader-Linux.tar.gz
-            dist/rongyok-cli-linux.tar.gz
-
-  # 🎉 Create GitHub Release
-  release:
-    needs: [build-windows, build-macos, build-linux]
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📥 Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: 📋 List artifacts
-        run: |
-          echo "📦 Downloaded artifacts:"
-          find artifacts -type f -name "*"
-
-      - name: 🏷️ Get version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: 🎉 Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: 🎬 Rongyok Downloader ${{ steps.version.outputs.version }}
-          body: |
-            ## 🎬 Rongyok Video Downloader ${{ steps.version.outputs.version }}
-
-            ### 📥 ดาวน์โหลด
-
-            | 🖥️ Platform | 📦 GUI App | ⌨️ CLI |
-            |-------------|-----------|--------|
-            | 🪟 Windows | `RongyokDownloader-Windows.exe` | `rongyok-cli-windows.exe` |
-            | 🍎 macOS | `RongyokDownloader-macOS.zip` | `rongyok-cli-macos.zip` |
-            | 🐧 Linux | `RongyokDownloader-Linux.tar.gz` | `rongyok-cli-linux.tar.gz` |
-
-            ### 📋 วิธีใช้งาน
-
-            #### 🪟 Windows
-            1. ดาวน์โหลด `.exe` ไฟล์
-            2. ดับเบิลคลิกเพื่อเปิดใช้งาน
-
-            #### 🍎 macOS
-            1. ดาวน์โหลด `.zip` ไฟล์
-            2. แตกไฟล์และเปิดแอป
-            3. หากมีคำเตือน: System Preferences → Security & Privacy → Open Anyway
-
-            #### 🐧 Linux
-            1. ดาวน์โหลด `.tar.gz` ไฟล์
-            2. แตกไฟล์: `tar -xzvf RongyokDownloader-Linux.tar.gz`
-            3. รัน: `./RongyokDownloader-Linux`
-
-            ### ⚠️ หมายเหตุ
-            - ต้องติดตั้ง FFmpeg สำหรับการรวมวิดีโอ
-            - ดูรายละเอียดเพิ่มเติมที่ [README](https://github.com/TheerasakPing/rongyok-video-downloader#readme)
-          draft: false
-          prerelease: false
-          files: |
-            artifacts/windows-build/RongyokDownloader-Windows.exe
-            artifacts/windows-build/rongyok-cli-windows.exe
-            artifacts/macos-build/RongyokDownloader-macOS.zip
-            artifacts/macos-build/rongyok-cli-macos.zip
-            artifacts/linux-build/RongyokDownloader-Linux.tar.gz
-            artifacts/linux-build/rongyok-cli-linux.tar.gz
+      - name: Build Tauri Desktop App
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Rongyok Video Downloader HUD ${{ github.ref_name }}'
+          releaseBody: |
+            ## Rongyok Video Downloader HUD ${{ github.ref_name }}
+
+            ### Highlights
+            - Rust + Tauri v2 native desktop application
+            - Dynamic stream URL extraction (`/watch/playseries.php`)
+            - HTTP 206 Range byte resumption
+            - Lossless FFmpeg stream copy concat
+            - React 19 Cyberpunk HUD Interface (100% Vector SVG)
+
+            ### Attribution
+            Based on the original work by [TheerasakPing/rongyok-video-downloader](https://github.com/TheerasakPing/rongyok-video-downloader.git).
+          releaseDraft: false
+          prerelease: false
+
+  build-python-executables:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build legacy Python CLI
+        run: |
+          pyinstaller --onefile --console --name "rongyok-cli-windows" cli.py
+
+      - name: Upload Python CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-cli-windows
+          path: dist/rongyok-cli-windows.exe
