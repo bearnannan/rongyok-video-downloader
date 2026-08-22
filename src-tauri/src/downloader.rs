@@ -11,7 +11,6 @@ use tauri::{AppHandle, Emitter};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 
-const CHUNK_SIZE: usize = 1024 * 1024; // 1MB buffer
 
 #[derive(Clone)]
 pub struct VideoDownloader {
@@ -79,10 +78,17 @@ impl VideoDownloader {
         }
 
         let client = reqwest::Client::new();
-        let mut req = client.get(&episode_info.video_url).header(
-            USER_AGENT,
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        );
+        let mut req = client
+            .get(&episode_info.video_url)
+            .header(
+                USER_AGENT,
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            )
+            .header("Referer", "https://rongyok.com/")
+            .header("Accept", "*/*")
+            .header("Sec-Fetch-Dest", "video")
+            .header("Sec-Fetch-Mode", "no-cors")
+            .header("Sec-Fetch-Site", "cross-site");
 
         if downloaded_bytes > 0 {
             req = req.header(RANGE, format!("bytes={}-", downloaded_bytes));

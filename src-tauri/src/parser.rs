@@ -8,6 +8,7 @@ use tokio::sync::RwLock;
 
 pub const BASE_URL: &str = "https://rongyok.com/watch/";
 pub const API_URL: &str = "https://rongyok.com/watch/playseries.php";
+pub const DEFAULT_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 #[derive(Clone)]
 pub struct RongyokParser {
@@ -18,22 +19,26 @@ pub struct RongyokParser {
 impl RongyokParser {
     pub fn new() -> Self {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            USER_AGENT,
-            HeaderValue::from_static(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            ),
-        );
+        headers.insert(USER_AGENT, HeaderValue::from_static(DEFAULT_UA));
         headers.insert(
             ACCEPT,
-            HeaderValue::from_static(
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            ),
+            HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"),
         );
         headers.insert(
             ACCEPT_LANGUAGE,
             HeaderValue::from_static("th,en-US;q=0.9,en;q=0.8"),
         );
+        headers.insert(
+            "Sec-Ch-Ua",
+            HeaderValue::from_static("\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\""),
+        );
+        headers.insert("Sec-Ch-Ua-Mobile", HeaderValue::from_static("?0"));
+        headers.insert("Sec-Ch-Ua-Platform", HeaderValue::from_static("\"Windows\""));
+        headers.insert("Sec-Fetch-Dest", HeaderValue::from_static("document"));
+        headers.insert("Sec-Fetch-Mode", HeaderValue::from_static("navigate"));
+        headers.insert("Sec-Fetch-Site", HeaderValue::from_static("same-origin"));
+        headers.insert("Sec-Fetch-User", HeaderValue::from_static("?1"));
+        headers.insert("Upgrade-Insecure-Requests", HeaderValue::from_static("1"));
         headers.insert(REFERER, HeaderValue::from_static("https://rongyok.com/"));
 
         let client = reqwest::Client::builder()
@@ -79,12 +84,15 @@ impl RongyokParser {
             }
         }
 
+        // Initialize session cookies if needed
+        let _ = self.client.get("https://rongyok.com/").send().await;
+
         let url = format!("{}?series_id={}", BASE_URL, series_id);
 
         let response = self
             .client
             .get(&url)
-            .header(REFERER, &url)
+            .header(REFERER, "https://rongyok.com/")
             .send()
             .await
             .map_err(|e| format!("HTTP request failed: {}", e))?;
@@ -118,14 +126,25 @@ impl RongyokParser {
             .map(|m| m.as_str().to_string());
 
         // Extract inline episode URLs if any
-        let episode_urls = self.extract_all_episode_urls(&html);
+        let mut episode_urls = self.extract_all_episode_urls(&html);
 
         // Extract total episodes
-        let total_episodes = if !episode_urls.is_empty() {
+        let mut total_episodes = if !episode_urls.is_empty() {
             episode_urls.len() as u32
         } else {
             self.extract_total_episodes(&html)
         };
+
+        // If no episodes found from main HTML, query playseries.php for ep 1 to test
+        if total_episodes == 1 && episode_urls.is_empty() {
+            if let Ok(ep1_info) = self.get_episode_video_url(series_id, 1).await {
+                episode_urls.insert(1, ep1_info.video_url);
+            }
+        }
+
+        if total_episodes < episode_urls.len() as u32 {
+            total_episodes = episode_urls.len() as u32;
+        }
 
         let series_info = SeriesInfo {
             series_id,
@@ -145,8 +164,8 @@ impl RongyokParser {
     pub fn extract_all_episode_urls(&self, html: &str) -> HashMap<u32, String> {
         let mut episode_urls = HashMap::new();
 
-        // Pattern 1: numeric filename (1.mp4, 2.mp4)
-        if let Ok(re1) = Regex::new(r#"https?:(?://|\\/\\/)cdn\.discordapp\.com(?:\/|\\/)attachments(?:\/|\\/)\d+(?:\/|\\/)\d+(?:\/|\\/)(\d+)\.mp4\?[^"'<>\s]+"#) {
+        // Pattern 1: numeric filename (1.mp4, 2.mp4) or ep55.mp4
+        if let Ok(re1) = Regex::new(r#"(?i)https?:(?://|\\/\\/)cdn\.discordapp\.com(?:\/|\\/)attachments(?:\/|\\/)\d+(?:\/|\\/)\d+(?:\/|\\/)(?:ep)?(\d+)\.mp4\?[^"'<>\s]+"#) {
             for caps in re1.captures_iter(html) {
                 if let (Some(full), Some(ep)) = (caps.get(0), caps.get(1)) {
                     if let Ok(ep_num) = ep.as_str().parse::<u32>() {
@@ -160,16 +179,22 @@ impl RongyokParser {
             }
         }
 
-        // Pattern 2: EP prefix (EP01.mp4, EP02.mp4)
-        if let Ok(re2) = Regex::new(r#"(?i)https?:(?://|\\/\\/)cdn\.discordapp\.com(?:\/|\\/)attachments(?:\/|\\/)\d+(?:\/|\\/)\d+(?:\/|\\/)EP(\d+)\.mp4\?[^"'<>\s]+"#) {
+        // Pattern 2: Generic video_url in JSON
+        if let Ok(re2) = Regex::new(r#""video_url"\s*:\s*"(https?:[^"]+\.mp4[^"]*)""#) {
             for caps in re2.captures_iter(html) {
-                if let (Some(full), Some(ep)) = (caps.get(0), caps.get(1)) {
-                    if let Ok(ep_num) = ep.as_str().parse::<u32>() {
-                        let clean_url = full.as_str()
-                            .replace(r"\/", "/")
-                            .replace(r"\u0026", "&")
-                            .replace("&amp;", "&");
-                        episode_urls.insert(ep_num, clean_url);
+                if let Some(m) = caps.get(1) {
+                    let clean_url = m.as_str()
+                        .replace(r"\/", "/")
+                        .replace(r"\u0026", "&")
+                        .replace("&amp;", "&");
+                    if let Ok(re_num) = Regex::new(r#"(?i)[/\\](?:ep)?(\d+)\.mp4"#) {
+                        if let Some(num_caps) = re_num.captures(&clean_url) {
+                            if let Some(ep_str) = num_caps.get(1) {
+                                if let Ok(ep_num) = ep_str.as_str().parse::<u32>() {
+                                    episode_urls.insert(ep_num, clean_url);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -245,7 +270,7 @@ impl RongyokParser {
             }
         }
 
-        // 2. Call dynamic playseries.php API
+        // 2. Call dynamic playseries.php API with browser AJAX headers
         let api_url = format!("{}?series_id={}&ep={}", API_URL, series_id, episode);
         let referer_url = format!("{}?series_id={}&ep={}", BASE_URL, series_id, episode);
 
@@ -253,6 +278,11 @@ impl RongyokParser {
             .client
             .get(&api_url)
             .header(REFERER, &referer_url)
+            .header(ACCEPT, "application/json, text/javascript, */*; q=0.01")
+            .header("X-Requested-With", "XMLHttpRequest")
+            .header("Sec-Fetch-Dest", "empty")
+            .header("Sec-Fetch-Mode", "cors")
+            .header("Sec-Fetch-Site", "same-origin")
             .send()
             .await
         {
@@ -287,6 +317,7 @@ impl RongyokParser {
         let resp = self
             .client
             .get(&page_url)
+            .header(REFERER, &referer_url)
             .send()
             .await
             .map_err(|e| format!("Fallback page request failed: {}", e))?;
