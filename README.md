@@ -1,6 +1,6 @@
-# 🎬 Rongyok Video Downloader HUD (v2.0 Rust Edition)
+# Rongyok Video Downloader HUD (v2.0 Rust Edition)
 
-> ⚡ **เครื่องมือดาวน์โหลดวิดีโอและรวมไฟล์ซีรีส์จาก rongyok.com ประสิทธิภาพสูง**  
+> **เครื่องมือดาวน์โหลดวิดีโอและรวมไฟล์ซีรีส์จาก rongyok.com ประสิทธิภาพสูง**  
 > ปรับปรุงสถาปัตยกรรมใหม่ด้วย **Rust (Tauri v2)** และ **React 19 Cyber HUD Interface** พร้อมระบบ Dynamic Stream Resolver และยังคงรองรับการใช้งานผ่าน Python CLI แบบสมบูรณ์
 
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange?logo=rust&logoColor=white)](https://www.rust-lang.org/)
@@ -12,7 +12,7 @@
 
 ---
 
-## 🌟 การให้เครดิตและที่มาของโครงการ (Acknowledgement & Credits)
+## การให้เครดิตและที่มาของโครงการ (Acknowledgement & Credits)
 
 โครงการนี้ได้รับการพัฒนาต่อยอด ปรับปรุงสถาปัตยกรรม (Refactored & Enhanced) จากผลงานต้นฉบับของ **[TheerasakPing/rongyok-video-downloader](https://github.com/TheerasakPing/rongyok-video-downloader.git)**
 
@@ -20,18 +20,18 @@
 
 ---
 
-## ✨ คุณสมบัติและความสามารถเด่น (Key Features)
+## คุณสมบัติและความสามารถเด่น (Key Features)
 
-### 🦀 1. Rust High-Performance Core Engine (`src-tauri`)
+### 1. Rust High-Performance Core Engine (`src-tauri`)
 - **Dynamic Stream Extraction:** แก้ปัญหาลิงก์วิดีโอไม่โหลดในซีรีส์รุ่นใหม่ ด้วยการเชื่อมต่อ endpoint `/watch/playseries.php` พร้อมรักษา Session Cookie และส่ง Header ลายเซ็นอัตโนมัติ (พร้อมระบบ Regex Fallback)
 - **Tokio Multi-threaded Downloader:** เอนจินดาวน์โหลดแบบ Asynchronous ความเร็วสูง ใช้หน่วยความจำต่ำมาก
 - **HTTP Range Resume Support:** ดาวน์โหลดต่อจากไฟล์ชั่วคราว `.mp4.part` ได้ทันทีหากเน็ตหลุดหรือถูกขัดจังหวะ โดยไม่ต้องเริ่มโหลดใหม่ตั้งแต่ 0%
 - **Lossless FFmpeg Concat Demuxer:** รวมไฟล์วิดีโอทุกตอนเป็นไฟล์เดียว (`.mp4`) ด้วยโหมด Stream Copy (`-c copy`) แบบไม่สูญเสียความละเอียดและใช้เวลาเพียงไม่กี่วินาที
 - **Atomic State Persistence:** บันทึกสถานะการดาวน์โหลดลงไฟล์ `download_state.json` รองรับการกู้คืนเซสชันเดิม (Resume Previous Session) ด้วยคลิกเดียว
 
-### 🖥️ 2. Futuristic Cyber HUD Interface (React 19 + React Bits)
+### 2. Futuristic Cyber HUD Interface (React 19 + React Bits)
 - **Sleek Cyberpunk Aesthetic:** ดีไซน์โทน Dark Mode สไตล์ Sci-Fi HUD พร้อมพื้นหลังตาราง Grid, เส้น Scanlines เรืองแสง และการ์ดแบบ Glassmorphism
-- **Strict Vector SVG Policy:** ใช้งาน Vector SVG Icons ผ่าน `lucide-react` 100% ทั่วทั้งระบบ (ไม่มีการใช้ Raw Emojis ใน UI และ Log)
+- **Strict Vector SVG Policy:** ใช้งาน Vector SVG Icons ผ่าน `lucide-react` 100% ทั่วทั้งระบบ โดยไม่มีการใช้ Raw Emojis
 - **Interactive Episode Matrix:** ตารางเลือกตอนแบบ Grid พร้อมปุ่มเลือกช่วง (Range Selector เช่น `1-20`), ปุ่ม Select All, Deselect All และตัวบอกสถานะรายตอน
 - **Real-time Telemetry Dashboard:** มาตรวัดความเร็วแบบเรียลไทม์ (MB/s), ระบบคำนวณเวลาคงเหลือ (ETA), แถบ Progress Bar คู่ (รายตอนและทั้งชุด)
 - **Searchable Telemetry Log:** หน้าต่าง Terminal Log แสดงเหตุการณ์แบบเรียลไทม์ พร้อมช่องค้นหา/กรองข้อความ ปุ่ม Copy Log และปุ่ม Clear Log
@@ -39,11 +39,11 @@
 
 ---
 
-## 🛠️ โครงสร้างสถาปัตยกรรมและเทคโนโลยี (Tech Stack)
+## โครงสร้างสถาปัตยกรรมและเทคโนโลยี (Tech Stack)
 
 ```
-📦 rongyok-video-downloader/
-├── 🦀 src-tauri/             # ฝั่ง Backend ภาษา Rust (Tauri v2)
+rongyok-video-downloader/
+├── src-tauri/             # ฝั่ง Backend ภาษา Rust (Tauri v2)
 │   ├── src/
 │   │   ├── parser.rs         # ตัวแกะ URL และเชื่อมต่อ dynamic playseries.php API
 │   │   ├── downloader.rs     # เอนจินดาวน์โหลด Async Multi-thread พร้อม HTTP Range
@@ -54,7 +54,7 @@
 │   ├── Cargo.toml            # รายการ Dependencies และการตั้งค่า Build Profile ของ Rust
 │   └── tauri.conf.json       # การตั้งค่าหน้าต่างและ Permission ของ Tauri
 │
-├── ⚛️ src/                    # ฝั่ง Frontend UI (React 19 + TypeScript + Vite)
+├── src/                    # ฝั่ง Frontend UI (React 19 + TypeScript + Vite)
 │   ├── components/
 │   │   ├── HUDHeader.tsx     # แถบหัวระบบ แสดงสถานะ IPC, Engine และ FFmpeg
 │   │   ├── URLBar.tsx        # ช่องใส่ URL พร้อมปุ่ม Paste, Fetch และ Sample Preset
@@ -70,18 +70,18 @@
 │   ├── types/index.ts        # TypeScript Type Definitions
 │   └── App.tsx               # State Machine หลักของระบบ
 │
-├── 🐍 Legacy Python Modules/ # โมดูลภาษา Python เดิม (CLI & Scraper)
+├── Legacy Python Modules/    # โมดูลภาษา Python เดิม (CLI & Scraper)
 │   ├── cli.py                # Command-line interface
 │   ├── gui.py                # หน้าต่างเดสก์ท็อปแบบเดิม (Tkinter)
 │   ├── parser.py             # ตัวแกะข้อมูลซีรีส์เวอร์ชัน Python
 │   ├── downloader.py         # ตัวดาวน์โหลดเวอร์ชัน Python
 │   └── merger.py             # ตัวรวมไฟล์ FFmpeg เวอร์ชัน Python
-└── 🧪 tests/                 # ชุดการทดสอบ Unit Tests (ผ่าน 82/82 cases)
+└── tests/                    # ชุดการทดสอบ Unit Tests (ผ่าน 82/82 cases)
 ```
 
 ---
 
-## 🚀 การติดตั้งและเริ่มต้นใช้งาน (Getting Started)
+## การติดตั้งและเริ่มต้นใช้งาน (Getting Started)
 
 ### สิ่งที่ต้องเตรียม (Prerequisites)
 1. **Node.js** (เวอร์ชัน 18 ขึ้นไป) และ `npm`
@@ -116,7 +116,7 @@ npm run dev
 
 ---
 
-## 📦 การสร้างไฟล์สำหรับนำไปใช้งาน (Build Production Release)
+## การสร้างไฟล์สำหรับนำไปใช้งาน (Build Production Release)
 
 สำหรับการสร้างไฟล์ `.exe` และตัวติดตั้งสำหรับแจกจ่าย:
 
@@ -130,7 +130,7 @@ npm run tauri build
 
 ---
 
-## 🐍 การใช้งานผ่าน Command Line (Python CLI Mode)
+## การใช้งานผ่าน Command Line (Python CLI Mode)
 
 หากต้องการใช้งานผ่าน Terminal ด้วย Python CLI แบบดั้งเดิม:
 
@@ -161,7 +161,7 @@ python cli.py https://rongyok.com/watch/?series_id=8625 --no-merge
 
 ---
 
-## 🔧 การแก้ไขปัญหาที่พบบ่อย (Troubleshooting & FAQ)
+## การแก้ไขปัญหาที่พบบ่อย (Troubleshooting & FAQ)
 
 | ปัญหาที่พบ | สาเหตุ | วิธีแก้ไข |
 |---|---|---|
@@ -171,12 +171,12 @@ python cli.py https://rongyok.com/watch/?series_id=8625 --no-merge
 
 ---
 
-## 📜 สัญญาอนุญาต (License)
+## สัญญาอนุญาต (License)
 
 โครงการนี้เผยแพร่ภายใต้สัญญาอนุญาต **[MIT License](LICENSE)** — คุณสามารถนำไปใช้งาน, แก้ไข, และแจกจ่ายได้อย่างอิสระ
 
 ---
 
 <p align="center">
-  พัฒนาด้วย ⚡ และ 🦀 เพื่อการดาวน์โหลดวิดีโอที่รวดเร็วและมีประสิทธิภาพสูงสุด
+  พัฒนาเพื่อการดาวน์โหลดวิดีโอที่รวดเร็วและมีประสิทธิภาพสูงสุด
 </p>
