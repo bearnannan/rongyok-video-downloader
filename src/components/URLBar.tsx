@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ClipboardPaste, Loader2, Link2, X, Sparkles } from 'lucide-react';
+import { Search, ClipboardPaste, Loader2, Link2, X } from 'lucide-react';
 import { SpotlightCard } from './SpotlightCard';
 
 interface URLBarProps {
@@ -27,10 +27,6 @@ export const URLBar: React.FC<URLBarProps> = ({ url, setUrl, onFetch, isLoading 
     }
   };
 
-  const setSampleUrl = () => {
-    setUrl('https://rongyok.com/watch/?series_id=8625&ep=60');
-  };
-
   return (
     <SpotlightCard className="p-4 border-cyber-borderGlow/60 shadow-[0_0_20px_rgba(0,229,255,0.15)]">
       <div className="flex flex-col gap-2.5">
@@ -39,15 +35,6 @@ export const URLBar: React.FC<URLBarProps> = ({ url, setUrl, onFetch, isLoading 
             <Link2 className="w-4 h-4 text-cyber-neonCyan" />
             <span>Target Series URL</span>
           </label>
-
-          <button
-            type="button"
-            onClick={setSampleUrl}
-            className="flex items-center gap-1 text-[11px] font-mono text-cyber-neonAmber hover:underline opacity-90 hover:opacity-100 transition-opacity"
-          >
-            <Sparkles className="w-3 h-3" />
-            <span>Sample: Series 8625</span>
-          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -57,7 +44,7 @@ export const URLBar: React.FC<URLBarProps> = ({ url, setUrl, onFetch, isLoading 
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Paste Rongyok Series URL (e.g. https://rongyok.com/watch/?series_id=8625)"
+              placeholder="Paste Rongyok Series URL (e.g. https://rongyok.com/watch/?series_id=8626)"
               className="w-full pl-3.5 pr-9 py-2.5 bg-cyber-bg border border-cyber-border hover:border-cyber-neonCyan/50 rounded-lg text-sm text-cyber-textBright font-mono placeholder:text-cyber-textMuted/50 focus:outline-none focus:border-cyber-neonCyan focus:ring-1 focus:ring-cyber-neonCyan shadow-inner transition-all"
             />
             {url && (
