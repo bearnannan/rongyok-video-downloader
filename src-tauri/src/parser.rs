@@ -415,3 +415,37 @@ impl RongyokParser {
         Err(format!("Could not find video URL for episode {}", episode))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_total_episodes_series_7910() {
+        let parser = RongyokParser::new();
+        let html_7910 = r#"
+            <script>
+            const seriesData = {"id":7910,"title":"สงครามรักซาตาน","episodes_count":45,"episodes":[{"id":1,"episode_number":1},{"id":45,"episode_number":45}]};
+            </script>
+            <meta name="description" content="ดูสงครามรักซาตาน พากย์ไทย หนังสั้นจีน ฟรี คุณภาพ HD 45 ตอน จบ">
+        "#;
+        assert_eq!(parser.extract_total_episodes(html_7910), 45);
+    }
+
+    #[test]
+    fn test_extract_total_episodes_series_8626() {
+        let parser = RongyokParser::new();
+        let html_8626 = r#"
+            const seriesData = {"id":8626,"title":"สายลับจับคู่รักซีซั่น8","episodes_count":124};
+        "#;
+        assert_eq!(parser.extract_total_episodes(html_8626), 124);
+    }
+
+    #[test]
+    fn test_extract_total_episodes_meta_desc() {
+        let parser = RongyokParser::new();
+        let html = r#"<meta name="description" content="ดูซีรีส์ 90 ตอนจบ">"#;
+        assert_eq!(parser.extract_total_episodes(html), 90);
+    }
+}
+
