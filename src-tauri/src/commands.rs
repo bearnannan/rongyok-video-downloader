@@ -87,11 +87,17 @@ pub fn check_ffmpeg() -> Result<serde_json::Value, String> {
     }))
 }
 
+use tauri_plugin_dialog::DialogExt;
+
 #[tauri::command]
 pub async fn select_directory(
-    _default_path: Option<String>,
-    _app: AppHandle,
+    default_path: Option<String>,
+    app: AppHandle,
 ) -> Result<Option<String>, String> {
-    // Return standard folder dialog or fallback
-    Ok(None)
+    let mut builder = app.dialog().file();
+    if let Some(ref path) = default_path {
+        builder = builder.set_directory(path);
+    }
+    let folder = builder.blocking_pick_folder();
+    Ok(folder.map(|p| p.to_string()))
 }

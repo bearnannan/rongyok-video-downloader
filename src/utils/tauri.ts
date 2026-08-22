@@ -385,10 +385,31 @@ export const tauriApi = {
       if (mockIsPaused) return;
 
       const epNum = episodes[currentEpIdx];
-      epDownloadedBytes += 1024 * 512; // +512KB per tick
+      epDownloadedBytes += 1024 * 640; // +640KB per tick
+
+      const speedMb = 11.5 + Math.sin(Date.now() / 800) * 4.2 + (Math.random() * 2.0);
+      const speedBps = speedMb * 1024 * 1024;
+      const remainingBytes = Math.max(0, epTotalBytes - epDownloadedBytes);
+      const remainingSecs = Math.max(1, Math.round(remainingBytes / speedBps));
+      const mins = Math.floor(remainingSecs / 60);
+      const secs = remainingSecs % 60;
+      const etaStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
       if (epDownloadedBytes >= epTotalBytes) {
         epDownloadedBytes = 0;
+        mockEmitter.emit("download-progress", {
+          episode: epNum,
+          total_episodes: episodes.length,
+          current_episode_index: currentEpIdx + 1,
+          downloaded_bytes: epTotalBytes,
+          total_bytes: epTotalBytes,
+          percentage: 100,
+          speed_bytes_per_sec: speedBps,
+          speed_formatted: `${speedMb.toFixed(2)} MB/s`,
+          eta_formatted: "00:00",
+          status_message: `Episode ${epNum} downloaded successfully.`,
+        });
+
         mockEmitter.emit("log-message", {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-done-${epNum}`,
           timestamp: new Date().toTimeString().split(" ")[0],
@@ -411,22 +432,22 @@ export const tauriApi = {
           });
           return;
         }
+      } else {
+        const percent = (epDownloadedBytes / epTotalBytes) * 100;
+        mockEmitter.emit("download-progress", {
+          episode: episodes[currentEpIdx],
+          total_episodes: episodes.length,
+          current_episode_index: currentEpIdx + 1,
+          downloaded_bytes: epDownloadedBytes,
+          total_bytes: epTotalBytes,
+          percentage: percent,
+          speed_bytes_per_sec: speedBps,
+          speed_formatted: `${speedMb.toFixed(2)} MB/s`,
+          eta_formatted: etaStr,
+          status_message: `Downloading Episode ${episodes[currentEpIdx]} (${percent.toFixed(1)}%)`,
+        });
       }
-
-      const percent = (epDownloadedBytes / epTotalBytes) * 100;
-      mockEmitter.emit("download-progress", {
-        episode: episodes[currentEpIdx],
-        total_episodes: episodes.length,
-        current_episode_index: currentEpIdx + 1,
-        downloaded_bytes: epDownloadedBytes,
-        total_bytes: epTotalBytes,
-        percentage: percent,
-        speed_bytes_per_sec: 14.5 * 1024 * 1024,
-        speed_formatted: "14.50 MB/s",
-        eta_formatted: "00:03",
-        status_message: `Downloading Episode ${episodes[currentEpIdx]} (${percent.toFixed(1)}%)`,
-      });
-    }, 150);
+    }, 120);
   },
 
   pauseDownload: async (): Promise<void> => {
@@ -464,9 +485,36 @@ export const tauriApi = {
 
   selectDirectory: async (defaultPath?: string): Promise<string | null> => {
     if (isTauri()) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      return await invoke<string | null>("select_directory", { defaultPath });
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const res = await invoke<string | null>("select_directory", { defaultPath });
+        if (res) return res;
+      } catch (err) {
+        console.error("Tauri select_directory error:", err);
+      }
     }
+
+    // Modern Web Browser File System Access API
+    if (typeof window !== "undefined" && "showDirectoryPicker" in window) {
+      try {
+        const handle = await (window as any).showDirectoryPicker();
+        if (handle && handle.name) {
+          return `./output/${handle.name}`;
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          return null; // User cancelled
+        }
+        console.warn("Browser showDirectoryPicker failed:", err);
+      }
+    }
+
+    // Fallback prompt for browser testing
+    if (typeof window !== "undefined") {
+      const userPrompt = window.prompt("Enter Output Storage Directory Path:", defaultPath || "./output");
+      return userPrompt !== null && userPrompt.trim() !== "" ? userPrompt.trim() : defaultPath || "./output";
+    }
+
     return defaultPath || "./output";
   },
 

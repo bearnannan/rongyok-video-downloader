@@ -73,8 +73,10 @@ export const DesktopApp: React.FC = () => {
       if (payload.status_message) {
         setStatusMessage(payload.status_message);
       }
-      if (payload.percentage >= 100 && !completedEpisodes.includes(payload.episode)) {
-        setCompletedEpisodes((prev: number[]) => [...prev, payload.episode]);
+      if (payload.percentage >= 100) {
+        setCompletedEpisodes((prev: number[]) =>
+          prev.includes(payload.episode) ? prev : [...prev, payload.episode]
+        );
       }
     }).then((unlisten: () => void) => {
       unlistenProgress = unlisten;
@@ -234,9 +236,19 @@ export const DesktopApp: React.FC = () => {
     }
   };
 
-  const overallPercentage = selectedEpisodes.length > 0
-    ? (completedEpisodes.filter(e => selectedEpisodes.includes(e)).length / selectedEpisodes.length) * 100
-    : 0;
+  const completedSelectedCount = completedEpisodes.filter((e) => selectedEpisodes.includes(e)).length;
+  const currentEpContribution =
+    progress && (status === 'downloading' || status === 'paused')
+      ? progress.percentage / 100
+      : 0;
+
+  const overallPercentage =
+    selectedEpisodes.length > 0
+      ? Math.min(
+          100,
+          ((completedSelectedCount + currentEpContribution) / selectedEpisodes.length) * 100
+        )
+      : 0;
 
   return (
     <div className="relative min-h-screen flex flex-col bg-cyber-bg text-cyber-textBright">
