@@ -26,6 +26,7 @@ export const SeriesCard: React.FC<SeriesCardProps> = ({ seriesInfo }) => {
         <div className="relative w-28 h-36 rounded-lg overflow-hidden border border-cyber-border bg-cyber-bg flex-shrink-0 flex items-center justify-center shadow-[0_0_20px_rgba(0,229,255,0.1)]">
           {seriesInfo.poster_url ? (
             <img
+              key={seriesInfo.poster_url}
               src={seriesInfo.poster_url}
               alt={seriesInfo.title}
               referrerPolicy="no-referrer"
