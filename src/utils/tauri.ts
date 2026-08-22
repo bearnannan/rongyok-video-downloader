@@ -149,7 +149,7 @@ export const tauriApi = {
     }
 
     mockEmitter.emit("log-message", {
-      id: `${Date.now()}-fetch`,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-fetch`,
       timestamp: new Date().toTimeString().split(" ")[0],
       level: "success",
       text: `[Browser Mode] Successfully resolved metadata: "${title}" (${totalEpisodes} Episodes)`,
@@ -199,7 +199,7 @@ export const tauriApi = {
     const epTotalBytes = 12724736; // 12.7 MB
 
     mockEmitter.emit("log-message", {
-      id: `${Date.now()}-start`,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-start`,
       timestamp: new Date().toTimeString().split(" ")[0],
       level: "info",
       text: `[Browser Mode] Starting download queue for ${episodes.length} episodes to ${outputDir}`,
@@ -218,7 +218,7 @@ export const tauriApi = {
       if (epDownloadedBytes >= epTotalBytes) {
         epDownloadedBytes = 0;
         mockEmitter.emit("log-message", {
-          id: `${Date.now()}-done-${epNum}`,
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-done-${epNum}`,
           timestamp: new Date().toTimeString().split(" ")[0],
           level: "success",
           text: `Episode ${epNum} downloaded successfully.`,
@@ -232,7 +232,7 @@ export const tauriApi = {
             message: `Completed batch download of ${episodes.length} episodes!`,
           });
           mockEmitter.emit("log-message", {
-            id: `${Date.now()}-batch-done`,
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-batch-done`,
             timestamp: new Date().toTimeString().split(" ")[0],
             level: "success",
             text: `[Browser Mode] All ${episodes.length} episodes downloaded successfully!`,

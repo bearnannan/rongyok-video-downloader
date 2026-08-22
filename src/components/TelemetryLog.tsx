@@ -123,8 +123,8 @@ export const TelemetryLog: React.FC<TelemetryLogProps> = ({ logs, onClear }) => 
             NO LOG EVENTS RECORDED // ENGINE IDLE
           </div>
         ) : (
-          filteredLogs.map((log) => (
-            <div key={log.id} className="flex items-start gap-2 leading-relaxed hover:bg-cyber-card/30 rounded px-1">
+          filteredLogs.map((log, index) => (
+            <div key={`${log.id}-${index}`} className="flex items-start gap-2 leading-relaxed hover:bg-cyber-card/30 rounded px-1">
               <span className="text-cyber-textMuted/60 text-[11px] flex-shrink-0">
                 [{log.timestamp}]
               </span>
