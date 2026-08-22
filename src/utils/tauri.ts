@@ -361,7 +361,62 @@ export const tauriApi = {
       });
     }
 
-    // Browser Simulation Fallback
+    // 1. Live Stream Downloader Engine with Real Disk Writes (/api/start-download)
+    try {
+      const epStr = episodes.join(",");
+      const query = new URLSearchParams({
+        series_id: seriesId.toString(),
+        series_title: seriesTitle,
+        episodes: epStr,
+        output_dir: outputDir,
+        auto_merge: autoMerge ? "true" : "false",
+        delete_after_merge: deleteAfterMerge ? "true" : "false",
+      });
+
+      const response = await fetch(`/api/start-download?${query.toString()}`);
+      if (response.ok && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        const readStream = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                try {
+                  const parsed = JSON.parse(trimmed);
+                  if (parsed.event && parsed.payload) {
+                    mockEmitter.emit(parsed.event, parsed.payload);
+                  }
+                } catch {
+                  // ignore non-json log line
+                }
+              }
+            }
+          } catch (err: any) {
+            if (err.name !== "AbortError") {
+              console.error("Download stream read error:", err);
+            }
+          }
+        };
+
+        readStream();
+        return;
+      }
+    } catch (err) {
+      console.warn("Live stream download endpoint unreachable, using client simulation:", err);
+    }
+
+    // 2. Browser Simulation Fallback (Pure static offline mode)
     mockIsPaused = false;
     mockIsCancelled = false;
     if (mockDownloadInterval) clearInterval(mockDownloadInterval);
@@ -473,6 +528,11 @@ export const tauriApi = {
     }
     mockIsCancelled = true;
     if (mockDownloadInterval) clearInterval(mockDownloadInterval);
+    try {
+      await fetch("/api/cancel-download");
+    } catch {
+      // ignore
+    }
   },
 
   loadPreviousState: async (outputDir: string): Promise<DownloadState | null> => {
