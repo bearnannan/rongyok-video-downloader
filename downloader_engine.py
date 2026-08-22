@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import re
 import time
 import argparse
 import subprocess
@@ -198,7 +199,9 @@ class StreamDownloader:
             return False
 
     def merge_episodes(self, series_title: str, episodes: list[int], delete_after: bool) -> bool:
-        clean_title = "".join(c for c in series_title if c.isalnum() or c in (" ", "_", "-")).strip()
+        # Sanitize Windows forbidden characters (\ / : * ? " < > |) while preserving all Thai vowels and tone marks
+        clean_title = re.sub(r'[\\/:*?"<>|\r\n\t]+', ' ', series_title).strip()
+        clean_title = re.sub(r'\s+', ' ', clean_title).rstrip('. ')
         if not clean_title:
             clean_title = "merged_series"
 
