@@ -33,6 +33,7 @@ class RongyokParser:
     """Parser for rongyok.com video pages"""
 
     BASE_URL = "https://rongyok.com/watch/"
+    API_URL = "https://rongyok.com/watch/playseries.php"
 
     def __init__(self):
         self.session = requests.Session()
@@ -74,6 +75,7 @@ class RongyokParser:
         url = f"{self.BASE_URL}?series_id={series_id}"
 
         try:
+            self.session.headers.update({'Referer': url})
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
 
@@ -95,7 +97,7 @@ class RongyokParser:
             # Extract all episode URLs from seriesData JavaScript object
             episode_urls = self._extract_all_episode_urls(html)
 
-            # Get total episodes
+            # Get total episodes (from seriesData JSON, inline URLs, or meta description)
             total_episodes = len(episode_urls) if episode_urls else self._extract_total_episodes(soup, html)
 
             series_info = SeriesInfo(
@@ -103,7 +105,7 @@ class RongyokParser:
                 title=title,
                 total_episodes=total_episodes,
                 poster_url=poster_url,
-                episode_urls=episode_urls
+                episode_urls=episode_urls if episode_urls else {}
             )
 
             # Cache it
@@ -171,7 +173,20 @@ class RongyokParser:
 
     def _extract_total_episodes(self, soup: BeautifulSoup, html: str) -> int:
         """Extract total episode count from page"""
-        # Method 1: Look for pattern in description "XX ตอน"
+        # Method 1: Look for seriesData JSON object
+        series_data_match = re.search(r'seriesData\s*=\s*(\{.+?\});', html, re.DOTALL)
+        if series_data_match:
+            try:
+                data_str = series_data_match.group(1)
+                data = json.loads(data_str)
+                if 'episodes_count' in data and int(data['episodes_count']) > 0:
+                    return int(data['episodes_count'])
+                if 'episodes' in data and isinstance(data['episodes'], list) and len(data['episodes']) > 0:
+                    return len(data['episodes'])
+            except (json.JSONDecodeError, ValueError, TypeError):
+                pass
+
+        # Method 2: Look for pattern in description "XX ตอน"
         desc_tag = soup.find('meta', attrs={'name': 'description'})
         if desc_tag:
             desc = desc_tag.get('content', '')
@@ -179,7 +194,7 @@ class RongyokParser:
             if match:
                 return int(match.group(1))
 
-        # Method 2: Count episode links/buttons
+        # Method 3: Count episode links/buttons
         episode_matches = re.findall(r'ตอนที่\s*(\d+)', html)
         if episode_matches:
             return max(int(ep) for ep in episode_matches)
@@ -199,7 +214,32 @@ class RongyokParser:
                 video_url=series_info.episode_urls[episode]
             )
 
-        # Fallback: fetch the specific episode page
+        # Method 1: Try dynamic playseries API endpoint
+        try:
+            api_url = f"{self.API_URL}?series_id={series_id}&ep={episode}"
+            headers = {'Referer': f"{self.BASE_URL}?series_id={series_id}&ep={episode}"}
+            response = self.session.get(api_url, headers=headers, timeout=30)
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if isinstance(data, dict) and data.get('ok') is True and isinstance(data.get('video_url'), str):
+                        video_url = data['video_url']
+                        video_url = video_url.replace('\\/', '/').replace('\\u0026', '&').replace('&amp;', '&')
+                        if series_info:
+                            if series_info.episode_urls is None:
+                                series_info.episode_urls = {}
+                            series_info.episode_urls[episode] = video_url
+                        return EpisodeInfo(
+                            episode_number=episode,
+                            title=f"ตอนที่ {episode}",
+                            video_url=video_url
+                        )
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        except requests.RequestException as e:
+            print(f"API request error for episode {episode}: {e}")
+
+        # Method 2 (Fallback): fetch the specific episode page
         url = f"{self.BASE_URL}?series_id={series_id}&ep={episode}"
 
         try:
@@ -211,10 +251,15 @@ class RongyokParser:
             episode_urls = self._extract_all_episode_urls(html)
 
             if episode in episode_urls:
+                video_url = episode_urls[episode]
+                if series_info:
+                    if series_info.episode_urls is None:
+                        series_info.episode_urls = {}
+                    series_info.episode_urls[episode] = video_url
                 return EpisodeInfo(
                     episode_number=episode,
                     title=f"ตอนที่ {episode}",
-                    video_url=episode_urls[episode]
+                    video_url=video_url
                 )
 
             # Try direct pattern match for this specific episode
@@ -225,6 +270,11 @@ class RongyokParser:
                 video_url = match.group(0)
                 video_url = video_url.replace('\\u0026', '&')
                 video_url = video_url.replace('&amp;', '&')
+
+                if series_info:
+                    if series_info.episode_urls is None:
+                        series_info.episode_urls = {}
+                    series_info.episode_urls[episode] = video_url
 
                 return EpisodeInfo(
                     episode_number=episode,

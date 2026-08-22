@@ -251,6 +251,17 @@ class TestExtractTotalEpisodes:
             count = parser._extract_total_episodes(soup, html)
             assert count == expected
 
+    def test_extract_from_seriesdata_json(self, parser):
+        """Test extracting episode count from seriesData JSON object"""
+        html = '''
+        <script>
+        const seriesData = {"id":8625,"title":"Test","episodes_count":77,"episodes":[{"id":1},{"id":2}]};
+        </script>
+        '''
+        soup = BeautifulSoup(html, 'html.parser')
+        count = parser._extract_total_episodes(soup, html)
+        assert count == 77
+
 
 class TestGetSeriesInfo:
     """Tests for get_series_info method with mocked requests"""
@@ -365,6 +376,32 @@ class TestGetEpisodeVideoUrl:
         assert episode.video_url == "http://example.com/1.mp4"
 
     @patch('requests.Session.get')
+    def test_get_episode_from_playseries_api(self, mock_get, parser):
+        """Test getting episode URL from playseries API"""
+        parser._cached_series[8625] = SeriesInfo(
+            series_id=8625,
+            title="Test Dynamic",
+            total_episodes=77,
+            episode_urls={}
+        )
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "ok": True,
+            "video_url": "https://cdn.discordapp.com/attachments/123/456/ep60.mp4?token=abc"
+        }
+        mock_get.return_value = mock_response
+
+        episode = parser.get_episode_video_url(8625, 60)
+
+        assert episode is not None
+        assert episode.episode_number == 60
+        assert episode.video_url == "https://cdn.discordapp.com/attachments/123/456/ep60.mp4?token=abc"
+        # Verify it cached the URL
+        assert parser._cached_series[8625].episode_urls[60] == episode.video_url
+
+    @patch('requests.Session.get')
     def test_get_episode_fallback_fetch(self, mock_get, parser):
         """Test fallback to fetching specific episode page"""
         # Empty cache
@@ -377,6 +414,7 @@ class TestGetEpisodeVideoUrl:
 
         # Mock response for episode page
         mock_response = Mock()
+        mock_response.status_code = 403
         mock_response.text = '''
         {"video_url": "https://cdn.discordapp.com/attachments/123/456/5.mp4?token=abc"}
         '''

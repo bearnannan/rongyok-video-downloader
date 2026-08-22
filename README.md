@@ -1,171 +1,153 @@
-# 🎬 Rongyok Video Downloader
+# 🎬 Rongyok Video Downloader HUD (v2.0 Rust Edition)
 
-> 📥 เครื่องมือดาวน์โหลดวิดีโอจาก rongyok.com แบบอัตโนมัติ พร้อม Resume Support และ Video Merging
+> ⚡ **High-Performance Stream Downloader, Dynamic Stream Extractor & Video Concat Engine for Rongyok.com**  
+> Re-architected with **Rust (Tauri v2)** and **React 19 (Cyber HUD Interface)** with full backward-compatible Python CLI utilities.
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)](https://python.org)
+[![Rust](https://img.shields.io/badge/Rust-1.75+-orange?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Tauri](https://img.shields.io/badge/Tauri-v2.0-24C8D8?logo=tauri&logoColor=white)](https://v2.tauri.app/)
+[![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/TheerasakPing/rongyok-video-downloader)
-[![Tests](https://img.shields.io/badge/Tests-80%20passing-success)](tests/)
-[![GitHub Issues](https://img.shields.io/github/issues/TheerasakPing/rongyok-video-downloader)](https://github.com/TheerasakPing/rongyok-video-downloader/issues)
 
 ---
 
-## 📅 Changelog
+## 🌟 Acknowledgement & Attribution
 
-### v1.0.0 (2026-01-18)
-- 🎉 **Initial Release**: เปิดตัวเวอร์ชันแรก
-- 🖥️ **GUI**: Desktop application ด้วย Tkinter พร้อม Debug Log tab
-- ⌨️ **CLI**: Command-line interface เต็มรูปแบบ
-- 📥 **Core**: ระบบดาวน์โหลดแบบ Resume Support (HTTP Range)
-- 🎞️ **Merger**: รวมวิดีโออัตโนมัติด้วย FFmpeg
-- 🏗️ **Builds**: รองรับ Windows (`.exe`), macOS, และ Linux
-- 🧪 **Tests**: Unit tests ครอบคลุม 80+ cases
+This project is a refactored and enhanced fork based on the original work by **[TheerasakPing/rongyok-video-downloader](https://github.com/TheerasakPing/rongyok-video-downloader.git)**.
+
+Special thanks to [TheerasakPing](https://github.com/TheerasakPing) for the original foundation, reverse engineering of video stream patterns, and core architecture concepts.
 
 ---
 
-## ✨ คุณสมบัติเด่น
+## ⚡ What's New in v2.0 (Rust HUD Edition)
 
-| 🏷️ Feature | 📝 รายละเอียด |
-|------------|--------------|
-| 🖥️ GUI + CLI | แอปเดสก์ท็อป และ Command-line interface |
-| 📋 Episode Selection | ดาวน์โหลดทุกตอน หรือเลือกตอนที่ต้องการ (เช่น 1-10, 1,3,5) |
-| ⏸️ Resume Support | ดาวน์โหลดต่อได้ทันทีหากเน็ตหลุดหรือถูกขัดจังหวะ |
-| 🎞️ Video Merging | รวมไฟล์วิดีโอทุกตอนเป็นไฟล์เดียวอัตโนมัติ (ใช้ FFmpeg) |
-| 📊 Progress Tracking | แสดงความคืบหน้า Download Speed และ ETA แบบ Real-time |
-| 💾 State Persistence | บันทึกสถานะการดาวน์โหลด สามารถปิดแอปแล้วมาโหลดต่อวันหลังได้ |
+- 🦀 **Rust Core Engine (`src-tauri`):**
+  - **Dynamic Stream Extractor:** Automatically handles `/watch/playseries.php` API with active session cookie preservation and dynamic signature token negotiation.
+  - **Tokio Multi-threaded Downloader:** Blazing fast concurrent downloads with HTTP 206 `Range` byte resumption and `.mp4.part` staging.
+  - **FFmpeg Concat Demuxer:** Lossless instant stream merging (`-c copy`) with automatic Windows path escaping and part file cleanup.
+  - **Session State Persistence:** Atomic state preservation (`download_state.json`) with 1-click session recovery.
+- 🖥️ **Futuristic Cyber HUD Interface:**
+  - **React Bits Design:** Sleek dark glassmorphism, scanlines, glowing cyber neon borders, and smooth telemetry transitions.
+  - **Strict Vector SVG Policy:** 100% vector SVG icons via `lucide-react` across all status badges, telemetry bars, and interactive logs.
+  - **Episode Matrix:** Interactive multi-select grid with range selection (e.g. `1-20`), select/deselect all, and batch indicators.
+  - **Telemetry Console:** Live speed gauge (MB/s), ETA countdown, dual episode/batch progress bars, and searchable log stream.
+  - **Dual Mode Support:** Runs seamlessly both as a native Windows desktop app (`npm run tauri dev`) and as an interactive web app (`npm run dev`).
 
 ---
 
-## 🚀 การติดตั้ง
+## 🛠️ System Architecture & Tech Stack
 
-### 📋 วิธีที่ 1: Download Executable (ง่ายที่สุด)
-ดาวน์โหลดไฟล์โปรแกรมพร้อมใช้งานจาก [Releases Page](https://github.com/TheerasakPing/rongyok-video-downloader/releases)
-- **Windows**: `RongyokDownloader-Windows.zip`
-- **macOS**: `RongyokDownloader-macOS.zip`
-- **Linux**: `RongyokDownloader-Linux.zip`
+```
+📦 rongyok-video-downloader/
+├── 🦀 src-tauri/             # Rust Native Backend (Tauri v2)
+│   ├── src/
+│   │   ├── parser.rs         # Dynamic stream resolver & cookie-jar HTTP client
+│   │   ├── downloader.rs     # Async chunked Range downloader & telemetry emitter
+│   │   ├── merger.rs         # Lossless FFmpeg concat engine
+│   │   ├── state.rs          # Atomic session JSON serialization
+│   │   ├── commands.rs       # Tauri IPC command handlers
+│   │   └── main.rs / lib.rs  # Tauri application entry point
+│   ├── Cargo.toml            # Rust dependencies & optimization profiles
+│   └── tauri.conf.json       # Window configuration & desktop permissions
+│
+├── ⚛️ src/                    # Frontend UI (React + TypeScript + Vite)
+│   ├── components/
+│   │   ├── HUDHeader.tsx     # System brand & live diagnostic indicators
+│   │   ├── URLBar.tsx        # Target URL input with Paste, Fetch & sample preset
+│   │   ├── OutputSelector.tsx# Output storage path selector
+│   │   ├── SeriesCard.tsx    # Poster preview & series metadata
+│   │   ├── EpisodeGrid.tsx   # Interactive episode selection matrix
+│   │   ├── ProgressConsole.tsx # Speed meter, ETA timer & progress bars
+│   │   ├── ActionControls.tsx# Download, Pause, Resume, Cancel & Merge switches
+│   │   ├── TelemetryLog.tsx  # Searchable HUD terminal log stream
+│   │   ├── SpotlightCard.tsx # React Bits spotlight glassmorphism container
+│   │   └── HUDBackground.tsx # Cyberpunk grid backdrop & scanlines
+│   ├── utils/tauri.ts        # Universal Tauri IPC bridge with browser simulation fallback
+│   ├── types/index.ts        # TypeScript data contracts
+│   └── App.tsx               # Main application state machine
+│
+├── 🐍 Legacy Python Modules/ # Maintained Python CLI & Scraper
+│   ├── cli.py                # Command-line interface
+│   ├── gui.py                # Legacy Tkinter desktop interface
+│   ├── parser.py             # Python scraper with dynamic playseries.php resolver
+│   ├── downloader.py         # Python Range downloader
+│   └── merger.py             # Python FFmpeg subprocess wrapper
+└── 🧪 tests/                 # Unit & regression test suite (82 passing tests)
+```
 
-### 📋 วิธีที่ 2: รันจาก Source Code
+---
 
-#### 1. Clone Repository
+## 🚀 Quick Start & Installation
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18 or higher) & `npm`
+- [Rust](https://www.rust-lang.org/tools/install) (`rustc` and `cargo` 1.75+)
+- [FFmpeg](https://ffmpeg.org/download.html) (Optional, required for automatic video merging)
+
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/TheerasakPing/rongyok-video-downloader.git
+git clone https://github.com/bearnannan/rongyok-video-downloader.git
 cd rongyok-video-downloader
 ```
 
-#### 2. สร้าง Virtual Environment
+### 2. Install Frontend Dependencies
 ```bash
-# 🐍 สร้าง venv
-python3 -m venv venv
-
-# 🔌 Activate (Windows)
-venv\Scripts\activate
-
-# 🔌 Activate (macOS/Linux)
-source venv/bin/activate
+npm install
 ```
 
-#### 3. ติดตั้ง Dependencies
+### 3. Run Desktop Application (Tauri Mode)
 ```bash
+npm run tauri dev
+```
+
+### 4. Or Run Standalone Web Interface (Browser Mode)
+```bash
+npm run dev
+```
+Open **[http://localhost:1420](http://localhost:1420)** in your browser.
+
+---
+
+## 📦 Building Production Release
+
+To build a standalone optimized `.exe` and Windows Installer:
+```bash
+npm run tauri build
+```
+The compiled binaries will be located in the release bundle directory:
+- **Standalone `.exe`**: `src-tauri/target/release/rongyok-video-downloader.exe`
+- **Installer Package**: `src-tauri/target/release/bundle/nsis/` or `msi/`
+
+---
+
+## 🐍 Legacy Python CLI Usage
+
+If you prefer using the Python CLI:
+```bash
+# Setup virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
 pip install -r requirements.txt
-```
 
-#### 4. ติดตั้ง FFmpeg 🎞️
-> ⚠️ **จำเป็น** สำหรับการรวมไฟล์วิดีโอ (Video Merging)
+# Download all episodes
+python cli.py https://rongyok.com/watch/?series_id=8625
 
-| 🖥️ Platform | 📦 คำสั่งติดตั้ง |
-|-------------|----------------|
-| 🍎 macOS | `brew install ffmpeg` |
-| 🐧 Ubuntu/Debian | `sudo apt install ffmpeg` |
-| 🪟 Windows | ดาวน์โหลดจาก [ffmpeg.org](https://ffmpeg.org/download.html) และเพิ่มลงใน PATH |
+# Download specific episode range
+python cli.py https://rongyok.com/watch/?series_id=8625 --episodes 1-10
 
----
-
-## 📖 วิธีใช้งาน
-
-### 🖥️ GUI Mode (แนะนำ ⭐)
-
-```bash
-python gui.py
-```
-
-#### 📸 ขั้นตอนการใช้งาน:
-1. 📋 **Copy URL** ซีรีส์จากเว็บไซต์ rongyok.com
-2. ⌨️ **Paste** ลงในช่อง Series URL (หรือกดปุ่ม Paste)
-3. 🔍 กดปุ่ม **"Fetch"** เพื่อโหลดรายการตอน
-4. ✅ เลือกตอนที่ต้องการ (หรือกด Select All)
-5. 📥 กดปุ่ม **"Download"** เพื่อเริ่มดาวน์โหลด
-6. ☕ รอจนเสร็จสิ้น! วิดีโอจะถูกรวมเป็นไฟล์เดียว (ถ้าเลือก Merge)
-
-### ⌨️ CLI Mode
-
-```bash
-# 📥 ดาวน์โหลดทุกตอน
-python cli.py https://rongyok.com/watch/?series_id=941
-
-# 📥 ดาวน์โหลดตอนที่เลือก (ช่วง)
-python cli.py https://rongyok.com/watch/?series_id=941 --episodes 1-10
-
-# 📥 ดาวน์โหลดตอนที่เลือก (เจาะจง)
-python cli.py https://rongyok.com/watch/?series_id=941 --episodes 1,3,5,7
-
-# ▶️ ดาวน์โหลดต่อ (Resume)
-python cli.py https://rongyok.com/watch/?series_id=941 --resume
-
-# 🚫 ดาวน์โหลดโดยไม่รวมวิดีโอ
-python cli.py https://rongyok.com/watch/?series_id=941 --no-merge
-```
-
----
-
-## 🔧 Troubleshooting (การแก้ไขปัญหา)
-
-หากพบปัญหาในการใช้งาน ลองตรวจสอบเบื้องต้นดังนี้:
-
-### 1. ❌ Error: HTTP 403 Forbidden / URL หมดอายุ
-> **สาเหตุ:** URL วิดีโอของ Discord CDN มีอายุจำกัด (Token expire)
-> **วิธีแก้:** กด Fetch ใหม่เพื่อดึง URL ล่าสุด แล้วกด Download อีกครั้ง (โปรแกรมจะโหลดต่อจากเดิม)
-
-### 2. ❌ Error: FFmpeg not found
-> **สาเหตุ:** ยังไม่ได้ติดตั้ง FFmpeg หรือไม่ได้ตั้งค่า PATH
-> **วิธีแก้:**
-> - **Windows:** ดาวน์โหลด `ffmpeg.exe` แล้ววางไว้ในโฟลเดอร์เดียวกับโปรแกรม หรือตั้งค่า Environment Variable
-> - **macOS/Linux:** ติดตั้งผ่าน brew/apt (ดูหัวข้อการติดตั้ง)
-
-### 3. ❌ Error: [Errno 13] Permission denied
-> **สาเหตุ:** โปรแกรมไม่มีสิทธิ์เขียนไฟล์ในโฟลเดอร์ Output
-> **วิธีแก้:** เปลี่ยน Output Directory ไปที่อื่น เช่น Desktop หรือ Documents
-
-### 4. ❌ Error: Network Timeout
-> **สาเหตุ:** อินเทอร์เน็ตไม่เสถียร หรือเซิร์ฟเวอร์ตอบสนองช้า
-> **วิธีแก้:** โปรแกรมจะพยายามดาวน์โหลดต่อ ให้กด Resume หรือเริ่มใหม่ (ไฟล์เดิมจะไม่หาย)
-
-### 5. 🐞 พบ Bug อื่นๆ?
-สามารถแจ้งปัญหาได้ที่ [GitHub Issues](https://github.com/TheerasakPing/rongyok-video-downloader/issues/new)
-พร้อมแนบ Log จากแท็บ Debug Log ในโปรแกรม
-
----
-
-## 📁 โครงสร้างโปรเจค
-
-```
-📦 rongyok-downloader/
-├── 🖥️ gui.py           # Desktop GUI (Tkinter)
-├── ⌨️ cli.py           # Command-line interface
-├── 🔍 parser.py        # URL Parser Engine
-├── 📥 downloader.py    # Download Manager (Resume support)
-├── 🎞️ merger.py        # FFmpeg Wrapper
-├── 📋 requirements.txt # Python dependencies
-└── 📂 output/          # ผลลัพธ์การดาวน์โหลด
+# Resume interrupted download
+python cli.py https://rongyok.com/watch/?series_id=8625 --resume
 ```
 
 ---
 
 ## 📜 License
 
-MIT License - ใช้งาน, แก้ไข, และแจกจ่ายได้อย่างอิสระ 🎉
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
 <p align="center">
-  Made with 💜 in Thailand 🇹🇭
+  Crafted with ⚡ and 🦀 for high-performance automation.
 </p>

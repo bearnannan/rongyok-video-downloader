@@ -254,8 +254,8 @@ class VideoDownloader:
             if pbar:
                 pbar.close()
 
-            # Rename temp file to final
-            temp_file.rename(output_file)
+            # Rename temp file to final (use replace for Windows atomic overwrite support)
+            temp_file.replace(output_file)
 
             # Mark as completed
             if self.state:

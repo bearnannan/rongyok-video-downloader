@@ -26,7 +26,7 @@ ENV/
 env/
 .venv/
 
-# 🔧 IDE
+# 🔧 IDE & Tools
 .vscode/
 .idea/
 *.swp
@@ -64,7 +64,7 @@ Desktop.ini
 *.tar.gz
 *.zip
 
-# 🤖 Claude/AI/IDE Config
+# 🤖 AI / IDE Config
 .claude/
 .cursor/
 .cursorrules
@@ -73,5 +73,13 @@ Desktop.ini
 .agent/
 CLAUDE.md
 
-# 🖥️ Tauri App (separate project)
-tauri-app/
+# 📦 Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# 🦀 Rust & Tauri Builds
+src-tauri/target/
+src-tauri/build-target/
+target/
