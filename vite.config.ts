@@ -8,16 +8,20 @@ function liveScraperPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use("/api/fetch-series", (req, res) => {
         const urlObj = new URL(req.url || "", "http://localhost:1420");
-        const seriesId = urlObj.searchParams.get("series_id") || "8626";
+        const seriesId = urlObj.searchParams.get("series_id") || "8608";
 
         execFile(
           "python",
-          ["scrape_series.py", seriesId],
-          { cwd: process.cwd() },
+          ["-X", "utf8", "scrape_series.py", seriesId],
+          {
+            cwd: process.cwd(),
+            env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+            encoding: "buffer",
+          },
           (error, stdout) => {
             if (error) {
               res.statusCode = 500;
-              res.setHeader("Content-Type", "application/json");
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
               res.end(JSON.stringify({ error: error.message }));
               return;
             }

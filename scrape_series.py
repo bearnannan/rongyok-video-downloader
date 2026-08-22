@@ -1,6 +1,7 @@
 import sys
 import json
 import re
+import html as html_parser
 import requests
 
 def scrape(series_id):
@@ -32,28 +33,43 @@ def scrape(series_id):
     if resp.status_code != 200:
         return {"error": f"HTTP {resp.status_code}", "series_id": series_id}
 
-    html = resp.text
+    # 3. Decode content safely across UTF-8, TIS-620 / CP874
+    html_content = ""
+    try:
+        html_content = resp.content.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            html_content = resp.content.decode("cp874")
+        except UnicodeDecodeError:
+            try:
+                html_content = resp.content.decode("tis-620")
+            except UnicodeDecodeError:
+                html_content = resp.content.decode("utf-8", errors="replace")
 
     # Extract title
-    og_title = re.search(r'<meta\s+(?:property|name)=["\'](?:og:title|twitter:title)["\']\s+content=["\'](.*?)["\']', html)
-    h1_title = re.search(r'<h1[^>]*>(.*?)</h1>', html, re.DOTALL)
-    doc_title = re.search(r'<title>(.*?)</title>', html)
+    og_title = re.search(r'<meta\s+(?:property|name)=["\'](?:og:title|twitter:title)["\']\s+content=["\'](.*?)["\']', html_content)
+    h1_title = re.search(r'<h1[^>]*>(.*?)</h1>', html_content, re.DOTALL)
+    json_title = re.search(r'"title"\s*:\s*"([^"]+)"', html_content)
+    doc_title = re.search(r'<title>(.*?)</title>', html_content)
 
     raw_title = ""
-    if og_title:
+    if og_title and og_title.group(1).strip():
         raw_title = og_title.group(1).strip()
-    elif h1_title:
+    elif h1_title and h1_title.group(1).strip():
         raw_title = re.sub(r'<[^>]+>', '', h1_title.group(1)).strip()
-    elif doc_title:
+    elif json_title and json_title.group(1).strip():
+        raw_title = json_title.group(1).strip()
+    elif doc_title and doc_title.group(1).strip():
         raw_title = doc_title.group(1).strip()
     else:
         raw_title = f"Series {series_id}"
 
     clean_title = re.sub(r'\s*-\s*ตอนที่\s*\d+.*$', '', raw_title).strip()
+    clean_title = html_parser.unescape(clean_title)
 
     # Extract poster
-    json_poster = re.search(r'"(?:jpg_url|poster_url)"\s*:\s*"([^"]+)"', html)
-    og_image = re.search(r'<meta\s+(?:property|name)=["\'](?:og:image|twitter:image)["\']\s+content=["\'](.*?)["\']', html)
+    json_poster = re.search(r'"(?:jpg_url|poster_url)"\s*:\s*"([^"]+)"', html_content)
+    og_image = re.search(r'<meta\s+(?:property|name)=["\'](?:og:image|twitter:image)["\']\s+content=["\'](.*?)["\']', html_content)
     poster = None
     if json_poster:
         poster = json_poster.group(1).replace(r"\/", "/")
@@ -70,17 +86,17 @@ def scrape(series_id):
 
     # Extract total episodes
     ep_count = None
-    m_count = re.search(r'"episodes_count"\s*:\s*(\d+)', html)
+    m_count = re.search(r'"episodes_count"\s*:\s*(\d+)', html_content)
     if m_count:
         ep_count = int(m_count.group(1))
 
     if not ep_count:
-        ep_nums = [int(x) for x in re.findall(r'"episode_number"\s*:\s*(\d+)', html)]
+        ep_nums = [int(x) for x in re.findall(r'"episode_number"\s*:\s*(\d+)', html_content)]
         if ep_nums:
             ep_count = max(ep_nums)
 
     if not ep_count:
-        desc_m = re.search(r'(\d+)\s*ตอน', html)
+        desc_m = re.search(r'(\d+)\s*ตอน', html_content)
         if desc_m:
             ep_count = int(desc_m.group(1))
 
@@ -95,6 +111,8 @@ def scrape(series_id):
     }
 
 if __name__ == "__main__":
-    sid = int(sys.argv[1]) if len(sys.argv) > 1 else 7910
+    sid = int(sys.argv[1]) if len(sys.argv) > 1 else 8608
     res = scrape(sid)
-    print(json.dumps(res, ensure_ascii=False))
+    # Output pure UTF-8 bytes to binary stdout buffer
+    json_bytes = json.dumps(res, ensure_ascii=False).encode('utf-8')
+    sys.stdout.buffer.write(json_bytes)
