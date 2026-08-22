@@ -115,24 +115,72 @@ impl RongyokParser {
             .await
             .map_err(|e| format!("Failed to read HTML response: {}", e))?;
 
-        // Extract Title
+        // Extract Title:
+        // Priority 1: <meta property="og:title" content="..."> or twitter:title
+        // Priority 2: <h1 class="...">...</h1>
+        // Priority 3: <title>...</title>
+        let og_title_re = Regex::new(r#"<meta\s+(?:property|name)=["'](?:og:title|twitter:title)["']\s+content=["'](.*?)["']"#).unwrap();
+        let h1_re = Regex::new(r#"<h1[^>]*>(.*?)</h1>"#).unwrap();
         let title_re = Regex::new(r"(?i)<title>(.*?)</title>").unwrap();
-        let raw_title = title_re
+
+        let raw_title = og_title_re
             .captures(&html)
             .and_then(|c| c.get(1))
             .map(|m| m.as_str().trim().to_string())
+            .or_else(|| {
+                h1_re
+                    .captures(&html)
+                    .and_then(|c| c.get(1))
+                    .map(|m| {
+                        let tag_re = Regex::new(r"<[^>]+>").unwrap();
+                        tag_re.replace_all(m.as_str(), "").trim().to_string()
+                    })
+            })
+            .or_else(|| {
+                title_re
+                    .captures(&html)
+                    .and_then(|c| c.get(1))
+                    .map(|m| m.as_str().trim().to_string())
+            })
             .unwrap_or_else(|| format!("Series {}", series_id));
 
-        // Clean title
+        // Clean title - remove episode suffix, html entities and trim
         let clean_title_re = Regex::new(r"\s*-\s*ตอนที่\s*\d+.*$").unwrap();
-        let title = clean_title_re.replace(&raw_title, "").to_string();
+        let mut title = clean_title_re.replace(&raw_title, "").to_string();
+        title = title
+            .replace("&amp;", "&")
+            .replace("&#039;", "'")
+            .replace("&#39;", "'")
+            .replace("&quot;", "\"")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .trim()
+            .to_string();
 
-        // Extract Poster URL
-        let og_image_re = Regex::new(r#"<meta\s+property=["']og:image["']\s+content=["'](.*?)["']"#).unwrap();
-        let poster_url = og_image_re
+        // Extract Poster URL:
+        // Priority 1: og:image / twitter:image
+        // Priority 2: <img class="...poster..." src="...">
+        let og_image_re = Regex::new(r#"<meta\s+(?:property|name)=["'](?:og:image|twitter:image)["']\s+content=["'](.*?)["']"#).unwrap();
+        let poster_img_re = Regex::new(r#"<img[^>]+(?:class|id)=["'][^"']*poster[^"']*["'][^>]+src=["'](.*?)["']"#).unwrap();
+
+        let mut poster_url = og_image_re
             .captures(&html)
             .and_then(|c| c.get(1))
-            .map(|m| m.as_str().to_string());
+            .map(|m| m.as_str().to_string())
+            .or_else(|| {
+                poster_img_re
+                    .captures(&html)
+                    .and_then(|c| c.get(1))
+                    .map(|m| m.as_str().to_string())
+            });
+
+        if let Some(ref p_url) = poster_url {
+            if p_url.starts_with("//") {
+                poster_url = Some(format!("https:{}", p_url));
+            } else if p_url.starts_with('/') {
+                poster_url = Some(format!("https://rongyok.com{}", p_url));
+            }
+        }
 
         // Extract inline episode URLs if any
         let mut episode_urls = self.extract_all_episode_urls(&html);

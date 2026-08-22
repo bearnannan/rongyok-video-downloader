@@ -53,36 +53,99 @@ export const tauriApi = {
     // Browser Simulation Fallback
     await new Promise((r) => setTimeout(r, 400));
 
-    // Parse series ID accurately from URL
-    const trimmed = url.trim();
-    let seriesId = 8626;
+    // Decode URL safely (handling URL-encoded Thai characters)
+    let decodedUrl = url.trim();
+    try {
+      decodedUrl = decodeURIComponent(url.trim());
+    } catch {
+      // ignore
+    }
 
-    if (/^\d+$/.test(trimmed)) {
-      seriesId = parseInt(trimmed, 10);
+    // 1. Extract Series ID from various URL patterns
+    let seriesId = 8626;
+    if (/^\d+$/.test(decodedUrl)) {
+      seriesId = parseInt(decodedUrl, 10);
     } else {
-      const match = trimmed.match(/series_id=(\d+)/) || trimmed.match(/\/(?:series|watch)\/(\d+)/);
+      const match =
+        decodedUrl.match(/series_id=(\d+)/i) ||
+        decodedUrl.match(/\/(?:series|watch)\/(\d+)/i);
       if (match) {
         seriesId = parseInt(match[1], 10);
       }
     }
 
-    // Dynamic metadata mapping based on seriesId
-    let title = `ซีรีส์ ${seriesId} พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก`;
-    let totalEpisodes = 80;
-    let posterUrl = `https://rongyok.com/images/poster/series-${seriesId}.jpg`;
+    // 2. Extract potential title slug from URL path e.g. /series/100999963/ลูกสะใภ้ตัวร้ายกับคุณแม่สามีสุดแสบ-พากย์ไทย
+    let slugTitle: string | null = null;
+    let rawSlug = "";
+    const slugMatch = decodedUrl.match(/\/series\/\d+\/([^/?#]+)/i);
+    if (slugMatch && slugMatch[1]) {
+      rawSlug = slugMatch[1].trim();
+      const cleaned = rawSlug
+        .replace(/-/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (cleaned) {
+        slugTitle = cleaned;
+      }
+    }
 
-    if (seriesId === 8626) {
-      title = "ดูสายลับจับคู่รักซีซั่น8 พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก";
-      totalEpisodes = 124;
-      posterUrl = "https://rongyok.com/images/poster/สายลับจับคู่รักซีซั่น8-พากย์ไทย-2026-8626.jpg";
-    } else if (seriesId === 8625) {
-      title = "ดูเกิดใหม่ครั้งนี้ไม่ขอแสร้งเป็นลูกเศรษฐี7 พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก";
-      totalEpisodes = 77;
-      posterUrl = "https://rongyok.com/images/poster/เกิดใหม่ครั้งนี้ไม่ขอแสร้งเป็นลูกเศรษฐี7-พากย์ไทย-2026-8625.jpg";
-    } else if (seriesId === 941) {
-      title = "สายลับสาวทะลุมิติ พากย์ไทย หนังสั้นจีน - โรงหยก";
-      totalEpisodes = 68;
-      posterUrl = "https://rongyok.com/images/poster/series-941.jpg";
+    // 3. Extract episode hint from URL query param e.g. &ep=55
+    let epHint = 0;
+    const epMatch = decodedUrl.match(/(?:ep|episode)[=_/](\d+)/i);
+    if (epMatch) {
+      epHint = parseInt(epMatch[1], 10);
+    }
+
+    // 4. Series Metadata Knowledge Map
+    const seriesDB: Record<
+      number,
+      { title: string; totalEpisodes: number; posterUrl: string }
+    > = {
+      100999963: {
+        title: "ดู ลูกสะใภ้ตัวร้ายกับคุณแม่สามีสุดแสบ พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก",
+        totalEpisodes: 86,
+        posterUrl:
+          "https://rongyok.com/images/poster/ลูกสะใภ้ตัวร้ายกับคุณแม่สามีสุดแสบ-พากย์ไทย-2026-100999963.jpg",
+      },
+      8626: {
+        title: "ดูสายลับจับคู่รักซีซั่น8 พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก",
+        totalEpisodes: 124,
+        posterUrl:
+          "https://rongyok.com/images/poster/สายลับจับคู่รักซีซั่น8-พากย์ไทย-2026-8626.jpg",
+      },
+      8625: {
+        title: "ดูเกิดใหม่ครั้งนี้ไม่ขอแสร้งเป็นลูกเศรษฐี7 พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก",
+        totalEpisodes: 77,
+        posterUrl:
+          "https://rongyok.com/images/poster/เกิดใหม่ครั้งนี้ไม่ขอแสร้งเป็นลูกเศรษฐี7-พากย์ไทย-2026-8625.jpg",
+      },
+      941: {
+        title: "สายลับสาวทะลุมิติ พากย์ไทย หนังสั้นจีน - โรงหยก",
+        totalEpisodes: 68,
+        posterUrl: "https://rongyok.com/images/poster/series-941.jpg",
+      },
+    };
+
+    let title: string;
+    let totalEpisodes: number;
+    let posterUrl: string;
+
+    if (seriesDB[seriesId]) {
+      title = seriesDB[seriesId].title;
+      totalEpisodes = seriesDB[seriesId].totalEpisodes;
+      posterUrl = seriesDB[seriesId].posterUrl;
+    } else if (slugTitle) {
+      title = `ดู "${slugTitle}" หนังสั้นจีน ฟรี - โรงหยก`;
+      totalEpisodes = Math.max(epHint, 80);
+      posterUrl = `https://rongyok.com/images/poster/${rawSlug}-${seriesId}.jpg`;
+    } else {
+      title = `ดูซีรีส์รหัส ${seriesId} พากย์ไทย หนังสั้นจีน ฟรี - โรงหยก`;
+      totalEpisodes = Math.max(epHint, 80);
+      posterUrl = `https://rongyok.com/images/poster/series-${seriesId}.jpg`;
+    }
+
+    if (epHint > totalEpisodes) {
+      totalEpisodes = epHint;
     }
 
     mockEmitter.emit("log-message", {
