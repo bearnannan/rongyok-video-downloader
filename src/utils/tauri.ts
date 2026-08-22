@@ -45,15 +45,13 @@ let mockIsCancelled = false;
 
 export const tauriApi = {
   fetchSeriesInfo: async (url: string): Promise<SeriesInfo> => {
+    // 1. If running inside Tauri native desktop window -> Invoke Rust Backend Parser
     if (isTauri()) {
       const { invoke } = await import("@tauri-apps/api/core");
       return await invoke<SeriesInfo>("fetch_series_info", { url });
     }
 
-    // Browser Simulation Fallback
-    await new Promise((r) => setTimeout(r, 400));
-
-    // Decode URL safely (handling URL-encoded Thai characters)
+    // 2. In Browser Mode -> Decode URL and extract Series ID
     let decodedUrl = url.trim();
     try {
       decodedUrl = decodeURIComponent(url.trim());
@@ -61,7 +59,6 @@ export const tauriApi = {
       // ignore
     }
 
-    // 1. Extract Series ID from various URL patterns
     let seriesId = 8626;
     if (/^\d+$/.test(decodedUrl)) {
       seriesId = parseInt(decodedUrl, 10);
@@ -74,29 +71,135 @@ export const tauriApi = {
       }
     }
 
-    // 2. Extract potential title slug from URL path e.g. /series/100999963/ลูกสะใภ้ตัวร้ายกับคุณแม่สามีสุดแสบ-พากย์ไทย
+    // 3. Attempt Live Web Scraping via Vite Proxy (/proxy-rongyok/watch/?series_id=...)
+    try {
+      const resp = await fetch(`/proxy-rongyok/watch/?series_id=${seriesId}`, {
+        headers: {
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+
+      if (resp.ok) {
+        const htmlText = await resp.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
+
+        // Live Title Extraction
+        let liveTitle = "";
+        const ogTitle = doc
+          .querySelector('meta[property="og:title"], meta[name="twitter:title"]')
+          ?.getAttribute("content");
+        const h1Title = doc.querySelector("h1")?.textContent?.trim();
+        const docTitle = doc.querySelector("title")?.textContent?.trim();
+
+        liveTitle = ogTitle || h1Title || docTitle || `Series ${seriesId}`;
+        liveTitle = liveTitle
+          .replace(/\s*-\s*ตอนที่\s*\d+.*$/, "")
+          .replace(/[\r\n\t]+/g, " ")
+          .trim();
+
+        // Live Poster Extraction
+        let livePoster: string | null = null;
+        const ogImage = doc
+          .querySelector('meta[property="og:image"], meta[name="twitter:image"]')
+          ?.getAttribute("content");
+        const posterImg = doc
+          .querySelector('img[class*="poster"], .poster img, img[src*="poster"]')
+          ?.getAttribute("src");
+
+        livePoster = ogImage || posterImg || null;
+        if (livePoster) {
+          if (livePoster.startsWith("//")) livePoster = `https:${livePoster}`;
+          else if (livePoster.startsWith("/")) livePoster = `https://rongyok.com${livePoster}`;
+        }
+
+        // Live Episodes Count Extraction
+        let liveTotalEpisodes = 1;
+        const seriesDataMatch = htmlText.match(/seriesData\s*=\s*(\{.+?\});/s);
+        if (seriesDataMatch) {
+          try {
+            const sData = JSON.parse(seriesDataMatch[1]);
+            if (sData.episodes_count && Number(sData.episodes_count) > 0) {
+              liveTotalEpisodes = Number(sData.episodes_count);
+            } else if (Array.isArray(sData.episodes) && sData.episodes.length > 0) {
+              liveTotalEpisodes = sData.episodes.length;
+            }
+          } catch {
+            // ignore JSON parse error
+          }
+        }
+
+        if (liveTotalEpisodes <= 1) {
+          const desc =
+            doc.querySelector('meta[name="description"]')?.getAttribute("content") || "";
+          const countMatch = desc.match(/(\d+)\s*ตอน/);
+          if (countMatch) {
+            liveTotalEpisodes = parseInt(countMatch[1], 10);
+          }
+        }
+
+        if (liveTotalEpisodes <= 1) {
+          const epMatches = Array.from(htmlText.matchAll(/ตอนที่\s*(\d+)/g));
+          if (epMatches.length > 0) {
+            const maxEp = Math.max(...epMatches.map((m) => parseInt(m[1], 10)));
+            if (maxEp > 1) liveTotalEpisodes = maxEp;
+          }
+        }
+
+        // Extract Episode Stream URLs
+        const episodeUrls: Record<number, string> = {};
+        const discordRegex =
+          /https?:(?:\/\/|\\\/\\\/)cdn\.discordapp\.com(?:\/|\\\/)attachments(?:\/|\\\/)\d+(?:\/|\\\/)\d+(?:\/|\\\/)(?:ep)?(\d+)\.mp4\?[^"'<>\s]+/gi;
+        for (const m of htmlText.matchAll(discordRegex)) {
+          const epNum = parseInt(m[1], 10);
+          const cleanUrl = m[0]
+            .replace(/\\\//g, "/")
+            .replace(/\\u0026/g, "&")
+            .replace(/&amp;/g, "&");
+          episodeUrls[epNum] = cleanUrl;
+        }
+
+        if (Object.keys(episodeUrls).length > liveTotalEpisodes) {
+          liveTotalEpisodes = Object.keys(episodeUrls).length;
+        }
+
+        mockEmitter.emit("log-message", {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-fetch`,
+          timestamp: new Date().toTimeString().split(" ")[0],
+          level: "success",
+          text: `[Live Web Scraping] Extracted "${liveTitle}" (${liveTotalEpisodes} Episodes)`,
+        });
+
+        return {
+          series_id: seriesId,
+          title: liveTitle,
+          total_episodes: liveTotalEpisodes,
+          poster_url: livePoster || `https://rongyok.com/images/poster/series-${seriesId}.jpg`,
+          episode_urls: episodeUrls,
+        };
+      }
+    } catch (e) {
+      console.warn("Live scraping proxy unavailable, falling back to dynamic parser:", e);
+    }
+
+    // 4. Fallback URL Slug & Intelligent Metadata Resolver (if proxy or network is offline)
     let slugTitle: string | null = null;
     let rawSlug = "";
     const slugMatch = decodedUrl.match(/\/series\/\d+\/([^/?#]+)/i);
     if (slugMatch && slugMatch[1]) {
       rawSlug = slugMatch[1].trim();
-      const cleaned = rawSlug
-        .replace(/-/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+      const cleaned = rawSlug.replace(/-/g, " ").replace(/\s+/g, " ").trim();
       if (cleaned) {
         slugTitle = cleaned;
       }
     }
 
-    // 3. Extract episode hint from URL query param e.g. &ep=55
     let epHint = 0;
     const epMatch = decodedUrl.match(/(?:ep|episode)[=_/](\d+)/i);
     if (epMatch) {
       epHint = parseInt(epMatch[1], 10);
     }
 
-    // 4. Series Metadata Knowledge Map
     const seriesDB: Record<
       number,
       { title: string; totalEpisodes: number; posterUrl: string }
@@ -152,7 +255,7 @@ export const tauriApi = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-fetch`,
       timestamp: new Date().toTimeString().split(" ")[0],
       level: "success",
-      text: `[Browser Mode] Successfully resolved metadata: "${title}" (${totalEpisodes} Episodes)`,
+      text: `[Metadata Resolver] Extracted "${title}" (${totalEpisodes} Episodes)`,
     });
 
     const episodeUrls: Record<number, string> = {};

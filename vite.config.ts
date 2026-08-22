@@ -19,12 +19,27 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
     },
 
-    // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+    // Vite options tailored for development and Tauri integration
     clearScreen: false,
     server: {
       port: 1420,
       strictPort: true,
       host: host || false,
+      proxy: {
+        "/proxy-rongyok": {
+          target: "https://rongyok.com",
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/proxy-rongyok/, ""),
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Referer": "https://rongyok.com/",
+            "Accept":
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          },
+        },
+      },
       hmr: host
         ? {
             protocol: "ws",
