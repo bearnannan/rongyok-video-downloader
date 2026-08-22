@@ -10,6 +10,10 @@ const isGitHubPages = process.env.BUILD_FOR_GHPAGES === "true";
 export default defineConfig(async () => ({
   plugins: [react()],
   base: isGitHubPages ? "/rongyok-video-downloader/" : "./",
+  build: {
+    outDir: isGitHubPages ? "dist-pages" : "dist",
+    emptyOutDir: true,
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   clearScreen: false,
