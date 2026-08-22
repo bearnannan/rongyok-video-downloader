@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HUDBackground } from './components/HUDBackground';
+import { ParticlesBackground } from './components/ParticlesBackground';
 import { HUDHeader } from './components/HUDHeader';
+import { HeroSection } from './components/HeroSection';
+import { FeatureBentoGrid } from './components/FeatureBentoGrid';
 import { URLBar } from './components/URLBar';
 import { OutputSelector } from './components/OutputSelector';
 import { SeriesCard } from './components/SeriesCard';
@@ -8,7 +11,9 @@ import { EpisodeGrid } from './components/EpisodeGrid';
 import { ProgressConsole } from './components/ProgressConsole';
 import { ActionControls } from './components/ActionControls';
 import { TelemetryLog } from './components/TelemetryLog';
+import { FooterSection } from './components/FooterSection';
 import { tauriApi, isTauri } from './utils/tauri';
+import { Play, Sparkles, Layout } from 'lucide-react';
 import type { SeriesInfo, DownloadProgressEvent, DownloadStatus, LogMessage } from './types';
 
 export const App: React.FC = () => {
@@ -27,6 +32,9 @@ export const App: React.FC = () => {
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [compactMode, setCompactMode] = useState(isTauri());
+
+  const demoRef = useRef<HTMLDivElement>(null);
 
   // Append Log helper
   const addLog = useCallback((text: string, level: LogMessage['level'] = 'info') => {
@@ -238,21 +246,85 @@ export const App: React.FC = () => {
     }
   };
 
+  const scrollToDemo = () => {
+    demoRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   // Overall progress calculation
   const overallPercentage = selectedEpisodes.length > 0
     ? (completedEpisodes.filter(e => selectedEpisodes.includes(e)).length / selectedEpisodes.length) * 100
     : 0;
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-cyber-bg text-cyber-textBright overflow-y-auto">
-      {/* Ambient HUD Background */}
+    <div className="relative min-h-screen flex flex-col bg-cyber-bg text-cyber-textBright">
+      {/* Ambient Sci-Fi HUD Background */}
       <HUDBackground />
 
-      {/* Header */}
+      {/* Animated Particles Backdrop (React Bits) */}
+      <ParticlesBackground />
+
+      {/* Top Header & Navigation Bar */}
       <HUDHeader ffmpegAvailable={ffmpegAvailable} activeStatus={status} />
 
-      {/* Main Content Container */}
-      <main className="relative z-10 flex-1 p-6 max-w-7xl w-full mx-auto flex flex-col gap-5">
+      {/* Mode View Switcher (for Web mode) */}
+      {!isTauri() && (
+        <div className="relative z-20 flex justify-center py-2 bg-cyber-bg/60 border-b border-cyber-border/40 backdrop-blur-md">
+          <div className="flex items-center gap-1.5 p-1 bg-cyber-card rounded-lg border border-cyber-border">
+            <button
+              type="button"
+              onClick={() => setCompactMode(false)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-mono transition-all ${
+                !compactMode
+                  ? 'bg-cyber-neonCyan/20 text-cyber-neonCyan border border-cyber-neonCyan/40 font-bold'
+                  : 'text-cyber-textMuted hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>SHOWCASE LANDING</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCompactMode(true)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-mono transition-all ${
+                compactMode
+                  ? 'bg-cyber-neonCyan/20 text-cyber-neonCyan border border-cyber-neonCyan/40 font-bold'
+                  : 'text-cyber-textMuted hover:text-white'
+              }`}
+            >
+              <Layout className="w-3.5 h-3.5" />
+              <span>COMPACT HUD APP</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Full Landing Page Hero & Features (when not in compact mode) */}
+      {!compactMode && (
+        <>
+          <HeroSection onScrollToDemo={scrollToDemo} />
+          <FeatureBentoGrid />
+        </>
+      )}
+
+      {/* Interactive HUD Simulator / Native App Container */}
+      <section
+        ref={demoRef}
+        className="relative z-10 flex-1 p-4 sm:p-6 max-w-6xl w-full mx-auto flex flex-col gap-5 scroll-mt-6"
+      >
+        {!compactMode && (
+          <div className="flex items-center justify-between border-b border-cyber-border pb-3 pt-4">
+            <div className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-cyber-neonCyan fill-current" />
+              <h2 className="text-xl font-bold font-mono text-transparent bg-clip-text bg-gradient-to-r from-cyber-neonCyan to-white">
+                LIVE INTERACTIVE HUD ENGINE
+              </h2>
+            </div>
+            <span className="text-xs font-mono text-cyber-neonAmber border border-cyber-neonAmber/30 px-2 py-0.5 rounded bg-cyber-neonAmber/10">
+              Interactive Simulator
+            </span>
+          </div>
+        )}
+
         {/* Top Controls: URL & Output Directory */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <URLBar
@@ -317,7 +389,10 @@ export const App: React.FC = () => {
           logs={logs}
           onClear={() => setLogs([])}
         />
-      </main>
+      </section>
+
+      {/* Footer Section */}
+      <FooterSection />
     </div>
   );
 };
