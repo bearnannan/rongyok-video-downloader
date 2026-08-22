@@ -28,13 +28,24 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "msi"],
+    "shortDescription": "High-Performance Stream Downloader & Concat Engine",
+    "longDescription": "Ultra-fast multi-threaded video stream downloader and lossless FFmpeg merge utility with Sci-Fi Cyber HUD interface.",
+    "copyright": "Copyright © 2026 bearnannan & TheerasakPing",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      },
+      "wix": {
+        "language": ["en-US"]
+      }
+    }
   }
 }
